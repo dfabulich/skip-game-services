@@ -1,0 +1,3 @@
+# # Skip configuration for SkipGameServices module
+#build:
+#  contents:
