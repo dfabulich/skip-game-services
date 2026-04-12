@@ -12,6 +12,8 @@ import androidx.activity.ComponentActivity
 import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.GamesSignInClient
 import com.google.android.gms.games.AuthenticationResult
+import com.google.android.gms.games.Player
+import com.google.android.gms.games.PlayersClient
 #endif
 
 #if !SKIP
@@ -31,7 +33,12 @@ let logger: Logger = Logger(subsystem: "skip.game.services", category: "SkipGame
 public final class SkipGameServices {
     public static let shared = SkipGameServices()
 
-    private init() {}
+    /// Whether the user is signed in to Game Center (Apple) or Play Games Services (Android). Updated when you call ``refreshAuthentication()`` / ``authenticate()`` and (on Apple) when GameKit’s authentication handler runs.
+    public private(set) var isAuthenticated: Bool = false
+
+    private init() {
+        isAuthenticated = GKLocalPlayer.local.isAuthenticated
+    }
 
     #if !SKIP
     /// View controller from the latest ``GKLocalPlayer`` `authenticateHandler` callback
@@ -47,11 +54,14 @@ public final class SkipGameServices {
 
     /// Refreshes authentication state and returns whether the user is signed in.
     public func refreshAuthentication() async throws -> Bool {
+        let signedIn: Bool
         #if SKIP
-        return try await androidRefreshAuthentication()
+        signedIn = try await androidRefreshAuthentication()
         #else
-        return try await appleRefreshAuthentication()
+        signedIn = try await appleRefreshAuthentication()
         #endif
+        isAuthenticated = GKLocalPlayer.local.isAuthenticated
+        return signedIn
     }
 
     /// Interactive sign-in.
@@ -61,6 +71,7 @@ public final class SkipGameServices {
         #else
         try await appleAuthenticate()
         #endif
+        isAuthenticated = GKLocalPlayer.local.isAuthenticated
     }
 }
 
@@ -73,6 +84,7 @@ extension SkipGameServices {
             Task { @MainActor in
                 guard let self else { return }
                 self.authenticationViewController = viewController
+                defer { self.isAuthenticated = GKLocalPlayer.local.isAuthenticated }
                 guard let continuation = self.pendingRefreshContinuation else { return }
                 self.pendingRefreshContinuation = nil
                 if let error {
@@ -118,6 +130,7 @@ extension SkipGameServices {
     private func androidRefreshAuthentication() async throws -> Bool {
         guard let activity: ComponentActivity = UIApplication.shared.androidActivity else {
             logger.info("Play Games refreshAuthentication: no activity, isAuthenticated=false")
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return false
         }
         do {
@@ -126,12 +139,16 @@ extension SkipGameServices {
             return authed
         } catch {
             logger.error("Play Games refreshAuthentication failed: \(error.localizedDescription)")
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return false
         }
     }
 
     private func androidAuthenticate() async throws {
-        guard let activity: ComponentActivity = UIApplication.shared.androidActivity else { return }
+        guard let activity: ComponentActivity = UIApplication.shared.androidActivity else {
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            return
+        }
         _ = (try? await playGamesAuthenticate(activity: activity)) ?? false
     }
 
@@ -142,14 +159,33 @@ extension SkipGameServices {
         let client: GamesSignInClient = PlayGames.getGamesSignInClient(activity)
         let task: GmsTask<AuthenticationResult> = client.isAuthenticated()
         let result: AuthenticationResult = try await gmsTaskResult(task)
-        return result.isAuthenticated
+        return await syncGKLocalPlayerWithPlayGames(activity: activity, authResult: result)
     }
 
     private func playGamesAuthenticate(activity: ComponentActivity) async throws -> Bool {
         let client: GamesSignInClient = PlayGames.getGamesSignInClient(activity)
         let task: GmsTask<AuthenticationResult> = client.signIn()
         let result: AuthenticationResult = try await gmsTaskResult(task)
-        return result.isAuthenticated
+        return await syncGKLocalPlayerWithPlayGames(activity: activity, authResult: result)
+    }
+
+    /// Fills ``GKLocalPlayer/local`` before returning so ``GKLocalPlayer/isAuthenticated`` and IDs are consistent with the auth result.
+    private func syncGKLocalPlayerWithPlayGames(activity: ComponentActivity, authResult: AuthenticationResult) async -> Bool {
+        if !authResult.isAuthenticated {
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            return false
+        }
+        let players: PlayersClient = PlayGames.getPlayersClient(activity)
+        let playerTask: GmsTask<Player> = players.getCurrentPlayer()
+        do {
+            let player: Player = try await gmsTaskResult(playerTask)
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: true, playGamesPlayer: player)
+            return true
+        } catch {
+            logger.error("Play Games getCurrentPlayer failed after auth: \(error.localizedDescription, privacy: .public)")
+            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: true, playGamesPlayer: nil)
+            return true
+        }
     }
 
     private func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
