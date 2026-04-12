@@ -52,8 +52,8 @@ open class GKLocalPlayer: GKPlayer {
     }
 
     /// Updates local player identity from Play Games Services. Call before returning from auth refresh when values must be visible synchronously.
-    /// - Parameter playGamesPlayer: `nil`, or a `com.google.android.gms.games.Player` from PGS (typed as `Any?` for Skip transpilation).
-    static func _skip_applyPlayGamesState(isAuthenticated: Bool, playGamesPlayer: Any?) {
+    /// - Parameter playGamesPlayer: `nil`, or a `com.google.android.gms.games.Player` from PGS.
+    static func _skip_applyPlayGamesState(isAuthenticated: Bool, playGamesPlayer: com.google.android.gms.games.Player?) {
         let p = local
         p._skip_isAuthenticated = isAuthenticated
         p._skip_playGamesPlayer = playGamesPlayer
