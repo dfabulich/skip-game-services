@@ -10,9 +10,10 @@ let logger: Logger = Logger(subsystem: "SkipGameServices", category: "Tests")
 
 @Suite struct SkipGameServicesTests {
 
-    @Test func skipGameServices() throws {
+    @Test @MainActor func skipGameServices() throws {
         logger.log("running testSkipGameServices")
         #expect(1 + 2 == 3, "basic test")
+        #expect(SkipGameServices.shared === SkipGameServices.shared)
     }
 
     @Test func decodeType() throws {
