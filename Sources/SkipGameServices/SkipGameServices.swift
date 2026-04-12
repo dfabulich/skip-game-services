@@ -126,6 +126,21 @@ extension SkipGameServices {
     }
 }
 #else
+
+typealias GmsTask<T> = com.google.android.gms.tasks.Task<T>
+/// Play Games Services: suspends on `com.google.android.gms.tasks.Task` via `addOnCompleteListener` and `withCheckedThrowingContinuation`.
+internal func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
+    return try await withCheckedThrowingContinuation { continuation in
+        task.addOnCompleteListener { completed in
+            if completed.isSuccessful {
+                continuation.resume(returning: completed.getResult())
+            } else {
+                continuation.resume(throwing: ErrorException(cause: completed.getException()))
+            }
+        }
+    }
+}
+
 extension SkipGameServices {
     private func androidRefreshAuthentication() async throws -> Bool {
         guard let activity: ComponentActivity = UIApplication.shared.androidActivity else {
@@ -151,8 +166,6 @@ extension SkipGameServices {
         }
         _ = (try? await playGamesAuthenticate(activity: activity)) ?? false
     }
-
-    typealias GmsTask<T> = com.google.android.gms.tasks.Task<T>
 
     /// Play Games Services v2: suspends on Google Play `com.google.android.gms.tasks.Task` via `addOnCompleteListener` and `withCheckedThrowingContinuation`.
     private func playGamesRefreshAuthentication(activity: ComponentActivity) async throws -> Bool {
@@ -185,18 +198,6 @@ extension SkipGameServices {
             logger.error("Play Games getCurrentPlayer failed after auth: \(error.localizedDescription, privacy: .public)")
             GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: true, playGamesPlayer: nil)
             return true
-        }
-    }
-
-    private func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
-        return try await withCheckedThrowingContinuation { continuation in
-            task.addOnCompleteListener { completed in
-                if completed.isSuccessful {
-                    continuation.resume(returning: completed.getResult())
-                } else {
-                    continuation.resume(throwing: ErrorException(cause: completed.getException()))
-                }
-            }
         }
     }
 }

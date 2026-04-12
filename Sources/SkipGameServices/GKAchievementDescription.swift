@@ -1,0 +1,101 @@
+// Licensed under the Mozilla Public License 2.0
+// SPDX-License-Identifier: MPL-2.0
+
+#if !SKIP_BRIDGE
+#if SKIP
+import Foundation
+import SkipUI
+
+/// GKAchievementDescription is a full description of the achievement as defined in Play Console (Play Games Services).
+open class GKAchievementDescription: NSObject {
+    private let _identifier: String
+    private let _title: String
+    private let _achievedDescription: String
+
+    open var identifier: String { _identifier }
+
+    /// The title of the achievement.
+    open var title: String { _title }
+
+    /// The description for an unachieved achievement (Apple header naming; Play Games exposes a single description string).
+    open var achievedDescription: String { _achievedDescription }
+
+    fileprivate init(identifier: String, title: String, achievedDescription: String) {
+        self._identifier = identifier
+        self._title = title
+        self._achievedDescription = achievedDescription
+        super.init()
+    }
+
+    /// Asynchronously load all achievement descriptions
+    open class func loadAchievementDescriptions() async throws -> [GKAchievementDescription] {
+        let pgs = try await _skip_loadPGSAchievementDefinitions()
+        return pgs.map { p in
+            GKAchievementDescription(
+                identifier: p.getAchievementId(),
+                title: p.getName(),
+                achievedDescription: p.getDescription()
+            )
+        }
+    }
+
+    @available(*, unavailable)
+    open class func loadAchievementDescriptions(completionHandler: (@Sendable ([GKAchievementDescription]?, (any Error)?) -> Void)? = nil) {
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    open var groupIdentifier: String? { fatalError() }
+
+    /// The description for an achieved achievement.
+    @available(*, unavailable)
+    open var unachievedDescription: String { fatalError() }
+
+    @available(*, unavailable)
+    open var maximumPoints: Int { fatalError() }
+
+    @available(*, unavailable)
+    open var isHidden: Bool { fatalError() }
+
+    @available(*, unavailable)
+    open var isReplayable: Bool { fatalError() }
+
+    @available(*, unavailable)
+    open var releaseState: GKReleaseState { fatalError() }
+
+    @available(*, unavailable)
+    open var activityIdentifier: String { fatalError() }
+
+    @available(*, unavailable)
+    open var activityProperties: [String: String] { fatalError() }
+}
+
+extension GKAchievementDescription {
+    @available(*, unavailable)
+    public var rarityPercent: Double? { fatalError() }
+}
+
+extension GKAchievementDescription {
+    @available(*, unavailable)
+    open func loadImage(completionHandler: (@Sendable (UIImage?, (any Error)?) -> Void)? = nil) {
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    open func loadImage() async throws -> UIImage {
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    open class func incompleteAchievementImage() -> UIImage {
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    open class func placeholderCompletedAchievementImage() -> UIImage {
+        fatalError()
+    }
+}
+
+#endif
+#endif
