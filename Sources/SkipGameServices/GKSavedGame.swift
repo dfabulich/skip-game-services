@@ -42,6 +42,25 @@ open class GKSavedGame: NSObject/*, NSCopying */ {
     }
 
     open func loadData() async throws -> Data {
+        // While a Play Games conflict is unresolved, open(MANUAL) returns the same conflict again (see requireSnapshotAfterOpen).
+        // GKSavedGame instances from SnapshotConflict.toSavedGames() carry snapshotConflict; read bytes from that branch's Snapshot.
+        if let conflict = snapshotConflict {
+            let myId = snapshotMetadata.getSnapshotId()
+            let base: Snapshot = conflict.getSnapshot()
+            let other: Snapshot = conflict.getConflictingSnapshot()
+            let branch: Snapshot
+            if base.getMetadata().getSnapshotId() == myId {
+                branch = base
+            } else if other.getMetadata().getSnapshotId() == myId {
+                branch = other
+            } else {
+                throw GKError("Saved game metadata did not match either conflict branch")
+            }
+            let contents: SnapshotContents = branch.getSnapshotContents()
+            let bytes = try contents.readFully()
+            return Data(platformValue: bytes)
+        }
+
         let activity: ComponentActivity = UIApplication.shared.androidActivity!
         let client: SnapshotsClient = PlayGames.getSnapshotsClient(activity)
         let task: GmsTask<SnapshotsClient.DataOrConflict<Snapshot>> = client.open(
