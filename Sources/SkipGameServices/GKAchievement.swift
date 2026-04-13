@@ -31,7 +31,7 @@ extension com.google.android.gms.games.achievement.Achievement {
 // MARK: - Achievement ID registration (logical GameKit id ↔ Play Games opaque id)
 
 @MainActor
-internal enum _SkipAchievementIdentifierRegistration {
+internal enum SkipAchievementIdentifierRegistration {
     struct Maps: Sendable {
         let logicalToGoogle: [String: String]
         let googleToLogical: [String: String]
@@ -54,9 +54,9 @@ internal enum _SkipAchievementIdentifierRegistration {
 }
 
 /// Ensures achievement id registration ran; returns the maps from the main actor.
-internal func _skip_requireRegisteredAchievementMaps() async throws -> _SkipAchievementIdentifierRegistration.Maps {
+internal func requireRegisteredAchievementMaps() async throws -> SkipAchievementIdentifierRegistration.Maps {
     try await MainActor.run {
-        guard let maps = _SkipAchievementIdentifierRegistration.maps else {
+        guard let maps = SkipAchievementIdentifierRegistration.maps else {
             throw GKError(
                 "Achievement identifiers not registered; call GKAchievement.registerAchievementIdentifiers(_:) before using Play Games achievement APIs."
             )
@@ -86,13 +86,13 @@ open class GKAchievement: NSObject {
     @MainActor
     public var opaqueIdentifier: String? {
         if let id = _backingOpaquePlayGamesId, !id.isEmpty { return id }
-        return _SkipAchievementIdentifierRegistration.maps?.logicalToGoogle[identifier]
+        return SkipAchievementIdentifierRegistration.maps?.logicalToGoogle[identifier]
     }
 
     /// Registers logical achievement ids (matching iOS Game Center) to Play Games opaque ids. Required before ``loadAchievements()``, ``report(_:)``, and ``GKAchievementDescription/loadAchievementDescriptions()``. Call from the main actor; later calls replace the mapping.
     @MainActor
     open class func registerAchievementIdentifiers(_ map: [String: String]) throws {
-        try _SkipAchievementIdentifierRegistration.register(logicalToGoogle: map)
+        try SkipAchievementIdentifierRegistration.register(logicalToGoogle: map)
     }
 
     /// Designated initializer
@@ -104,7 +104,7 @@ open class GKAchievement: NSObject {
         super.init()
     }
 
-    private init(pgsAchievement: com.google.android.gms.games.achievement.Achievement, maps: _SkipAchievementIdentifierRegistration.Maps) throws {
+    private init(pgsAchievement: com.google.android.gms.games.achievement.Achievement, maps: SkipAchievementIdentifierRegistration.Maps) throws {
         let googleId = pgsAchievement.getAchievementId() ?? ""
         guard let logical = maps.googleToLogical[googleId] else {
             throw GKError("Unmapped Play Games achievement id '\(googleId)'")
@@ -130,12 +130,12 @@ open class GKAchievement: NSObject {
 
     /// Asynchronously load all achievements for the local player
     open class func loadAchievements() async throws -> [GKAchievement] {
-        let maps = try await _skip_requireRegisteredAchievementMaps()
+        let maps = try await requireRegisteredAchievementMaps()
         let activity: ComponentActivity = UIApplication.shared.androidActivity!
         let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
         let task: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
         let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(task)
-        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try collectFrozenRowsFromAnnotatedData(annotated)
         var out: [GKAchievement] = []
         for raw in frozen {
             out.append(try GKAchievement(pgsAchievement: raw, maps: maps))
@@ -145,12 +145,12 @@ open class GKAchievement: NSObject {
 
     /// Report an array of achievements to the server.
     open class func report(_ achievements: [GKAchievement]) async throws {
-        let maps = try await _skip_requireRegisteredAchievementMaps()
+        let maps = try await requireRegisteredAchievementMaps()
         let activity: ComponentActivity = UIApplication.shared.androidActivity!
         let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
         let loadTask: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
         let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(loadTask)
-        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try collectFrozenRowsFromAnnotatedData(annotated)
         var defById: [String: com.google.android.gms.games.achievement.Achievement] = [:]
         for d in frozen {
             let id = d.getAchievementId()

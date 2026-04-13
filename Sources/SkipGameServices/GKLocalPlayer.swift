@@ -12,9 +12,9 @@ open class GKLocalPlayer: GKPlayer {
 
     open class var local: GKLocalPlayer { _local }
 
-    private var _skip_isAuthenticated: Bool = false
+    private var authenticated: Bool = false
 
-    open var isAuthenticated: Bool { _skip_isAuthenticated }
+    open var isAuthenticated: Bool { authenticated }
 
     @available(*, unavailable)
     open var isUnderage: Bool { get { fatalError() } }
@@ -53,46 +53,46 @@ open class GKLocalPlayer: GKPlayer {
 
     /// Updates local player identity from Play Games Services. Call before returning from auth refresh when values must be visible synchronously.
     /// - Parameter playGamesPlayer: `nil`, or a `com.google.android.gms.games.Player` from PGS.
-    static func _skip_applyPlayGamesState(isAuthenticated: Bool, playGamesPlayer: com.google.android.gms.games.Player?) {
+    static func applyPlayGamesState(isAuthenticated: Bool, playGamesPlayer: com.google.android.gms.games.Player?) {
         let p = local
-        p._skip_isAuthenticated = isAuthenticated
-        p._skip_playGamesPlayer = playGamesPlayer
+        p.authenticated = isAuthenticated
+        p.playGamesPlayer = playGamesPlayer
     }
 
     /// A single listener may be registered once. Registering multiple times results in undefined behavior. The registered listener will receive callbacks for any selector it responds to.
     open func register(_ listener: any GKLocalPlayerListener) {
-        _skip_compactWeakListeners()
+        compactWeakListeners()
         let obj = listener as AnyObject
-        guard !_skip_includesListener(obj) else { return }
-        _skip_registeredListeners.append(_SkipWeakLocalPlayerListener(obj))
+        guard !includesListener(obj) else { return }
+        registeredListeners.append(WeakLocalPlayerListener(obj))
     }
 
     open func unregisterListener(_ listener: any GKLocalPlayerListener) {
         let obj = listener as AnyObject
-        _skip_registeredListeners.removeAll { $0.object === obj }
-        _skip_compactWeakListeners()
+        registeredListeners.removeAll { $0.object === obj }
+        compactWeakListeners()
     }
 
     open func unregisterAllListeners() {
-        _skip_registeredListeners.removeAll()
+        registeredListeners.removeAll()
     }
 
-    private var _skip_registeredListeners: [_SkipWeakLocalPlayerListener] = []
+    private var registeredListeners: [WeakLocalPlayerListener] = []
 
-    private func _skip_compactWeakListeners() {
-        _skip_registeredListeners.removeAll { $0.object == nil }
+    private func compactWeakListeners() {
+        registeredListeners.removeAll { $0.object == nil }
     }
 
-    private func _skip_includesListener(_ obj: AnyObject) -> Bool {
-        _skip_registeredListeners.contains { $0.object === obj }
+    private func includesListener(_ obj: AnyObject) -> Bool {
+        registeredListeners.contains { $0.object === obj }
     }
 
     /// Dispatches ``GKSavedGameListener/player(_:hasConflictingSavedGames:)`` on the main actor.
-    internal func _skip_notifySavedGameConflicts(_ games: [GKSavedGame]) async {
+    internal func notifySavedGameConflicts(_ games: [GKSavedGame]) async {
         await MainActor.run { [self] in
-            _skip_compactWeakListeners()
+            compactWeakListeners()
             let localPlayer = self
-            for ref in _skip_registeredListeners {
+            for ref in registeredListeners {
                 guard let listener = ref.object as? any GKLocalPlayerListener else { continue }
                 listener.player(localPlayer, hasConflictingSavedGames: games)
             }
@@ -100,7 +100,7 @@ open class GKLocalPlayer: GKPlayer {
     }
 }
 
-private final class _SkipWeakLocalPlayerListener {
+private final class WeakLocalPlayerListener {
     weak var object: AnyObject?
     init(_ object: AnyObject) { self.object = object }
 }

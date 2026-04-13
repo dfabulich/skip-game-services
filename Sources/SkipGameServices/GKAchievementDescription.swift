@@ -42,12 +42,12 @@ open class GKAchievementDescription: NSObject {
 
     /// Asynchronously load all achievement descriptions
     open class func loadAchievementDescriptions() async throws -> [GKAchievementDescription] {
-        let maps = try await _skip_requireRegisteredAchievementMaps()
+        let maps = try await requireRegisteredAchievementMaps()
         let activity: ComponentActivity = UIApplication.shared.androidActivity!
         let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
         let task: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
         let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(task)
-        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try collectFrozenRowsFromAnnotatedData(annotated)
         var out: [GKAchievementDescription] = []
         for p in frozen {
             let googleId = p.getAchievementId() ?? ""

@@ -147,7 +147,7 @@ internal func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
 // MARK: - Play Games `AnnotatedData` + `DataBuffer` → frozen rows
 
 /// Rows from a data buffer are only valid until ``release()``; ``freeze()`` returns entities safe to retain after the buffer is released.
-internal func _skip_collectFrozenRowsFromAnnotatedData<Element, Buffer: AbstractDataBuffer<Element>>(
+internal func collectFrozenRowsFromAnnotatedData<Element, Buffer: AbstractDataBuffer<Element>>(
     _ annotated: AnnotatedData<Buffer>
 ) throws -> [Element] where Element: Freezable<Element> {
     guard let buffer: Buffer = annotated.get() else {
@@ -167,7 +167,7 @@ extension SkipGameServices {
     private func androidRefreshAuthentication() async throws -> Bool {
         guard let activity: ComponentActivity = UIApplication.shared.androidActivity else {
             logger.info("Play Games refreshAuthentication: no activity, isAuthenticated=false")
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return false
         }
         do {
@@ -176,14 +176,14 @@ extension SkipGameServices {
             return authed
         } catch {
             logger.error("Play Games refreshAuthentication failed: \(error.localizedDescription)")
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return false
         }
     }
 
     private func androidAuthenticate() async throws {
         guard let activity: ComponentActivity = UIApplication.shared.androidActivity else {
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return
         }
         _ = (try? await playGamesAuthenticate(activity: activity)) ?? false
@@ -207,18 +207,18 @@ extension SkipGameServices {
     /// Fills ``GKLocalPlayer/local`` before returning so ``GKLocalPlayer/isAuthenticated`` and IDs are consistent with the auth result.
     private func syncGKLocalPlayerWithPlayGames(activity: ComponentActivity, authResult: AuthenticationResult) async -> Bool {
         if !authResult.isAuthenticated {
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: false, playGamesPlayer: nil)
             return false
         }
         let players: PlayersClient = PlayGames.getPlayersClient(activity)
         let playerTask: GmsTask<Player> = players.getCurrentPlayer()
         do {
             let player: Player = try await gmsTaskResult(playerTask)
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: true, playGamesPlayer: player)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: true, playGamesPlayer: player)
             return true
         } catch {
             logger.error("Play Games getCurrentPlayer failed after auth: \(error.localizedDescription, privacy: .public)")
-            GKLocalPlayer._skip_applyPlayGamesState(isAuthenticated: true, playGamesPlayer: nil)
+            GKLocalPlayer.applyPlayGamesState(isAuthenticated: true, playGamesPlayer: nil)
             return true
         }
     }

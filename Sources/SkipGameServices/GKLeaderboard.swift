@@ -36,11 +36,11 @@ public typealias NSRange = Any
 /// GKLeaderboard represents a single instance of a leaderboard for the current game.
 open class GKLeaderboard: NSObject {
 
-    private var _skip_leaderboardId: String = ""
-    private var _skip_title: String? = nil
+    private var pgsLeaderboardId: String = ""
+    private var storedTitle: String? = nil
 
     /// Localized title
-    open var title: String? { _skip_title }
+    open var title: String? { storedTitle }
 
     @available(*, unavailable)
     open var groupIdentifier: String? { fatalError() }
@@ -98,7 +98,7 @@ open class GKLeaderboard: NSObject {
         } else {
             let task: GmsTask<AnnotatedData<LeaderboardBuffer>> = client.loadLeaderboardMetadata(false)
             let annotated: AnnotatedData<LeaderboardBuffer> = try await gmsTaskResult(task)
-            let boards: [com.google.android.gms.games.leaderboard.Leaderboard] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+            let boards: [com.google.android.gms.games.leaderboard.Leaderboard] = try collectFrozenRowsFromAnnotatedData(annotated)
             return boards.map { GKLeaderboard(pgsLeaderboard: $0) }
         }
     }
@@ -141,11 +141,11 @@ open class GKLeaderboard: NSObject {
         let client: LeaderboardsClient = PlayGames.getLeaderboardsClient(activity)
         let raw: Int64 = Int64(score)
         if context == 0 {
-            let task: GmsTask<com.google.android.gms.games.leaderboard.ScoreSubmissionData> = client.submitScoreImmediate(_skip_leaderboardId, raw)
+            let task: GmsTask<com.google.android.gms.games.leaderboard.ScoreSubmissionData> = client.submitScoreImmediate(pgsLeaderboardId, raw)
             _ = try await gmsTaskResult(task)
         } else {
             let tag = String(context)
-            let task: GmsTask<com.google.android.gms.games.leaderboard.ScoreSubmissionData> = client.submitScoreImmediate(_skip_leaderboardId, raw, tag)
+            let task: GmsTask<com.google.android.gms.games.leaderboard.ScoreSubmissionData> = client.submitScoreImmediate(pgsLeaderboardId, raw, tag)
             _ = try await gmsTaskResult(task)
         }
     }
@@ -171,9 +171,9 @@ open class GKLeaderboard: NSObject {
     }
 
     private init(pgsLeaderboard: com.google.android.gms.games.leaderboard.Leaderboard) {
-        self._skip_leaderboardId = pgsLeaderboard.getLeaderboardId() ?? ""
+        self.pgsLeaderboardId = pgsLeaderboard.getLeaderboardId() ?? ""
         let displayName = pgsLeaderboard.getDisplayName()
-        self._skip_title = (displayName?.isEmpty ?? true) ? nil : displayName
+        self.storedTitle = (displayName?.isEmpty ?? true) ? nil : displayName
         super.init()
     }
 }
