@@ -65,28 +65,6 @@ internal func _skip_requireRegisteredAchievementMaps() async throws -> _SkipAchi
     }
 }
 
-/// Loads all achievement definitions from Play Games Services; releases the buffer before returning.
-internal func _skip_loadPGSAchievementDefinitions() async throws -> [com.google.android.gms.games.achievement.Achievement] {
-    let activity: ComponentActivity = UIApplication.shared.androidActivity!
-    let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
-    let task: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
-    let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(task)
-    guard let buffer: AchievementBuffer = annotated.get() else {
-        throw NSError(
-            domain: "GKAchievement",
-            code: 5,
-            userInfo: [NSLocalizedDescriptionKey: "Play Games achievement data was unavailable"]
-        )
-    }
-    defer { buffer.release() }
-    let count: Int = Int(buffer.getCount())
-    var out: [com.google.android.gms.games.achievement.Achievement] = []
-    for i in 0..<count {
-        out.append(buffer.get(Int32(i)))
-    }
-    return out
-}
-
 open class GKAchievement: NSObject {
     open var identifier: String = ""
 
@@ -153,21 +131,31 @@ open class GKAchievement: NSObject {
     /// Asynchronously load all achievements for the local player
     open class func loadAchievements() async throws -> [GKAchievement] {
         let maps = try await _skip_requireRegisteredAchievementMaps()
-        let pgs = try await _skip_loadPGSAchievementDefinitions()
-        return try pgs.map { try GKAchievement(pgsAchievement: $0, maps: maps) }
+        let activity: ComponentActivity = UIApplication.shared.androidActivity!
+        let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
+        let task: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
+        let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(task)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        var out: [GKAchievement] = []
+        for raw in frozen {
+            out.append(try GKAchievement(pgsAchievement: raw, maps: maps))
+        }
+        return out
     }
 
     /// Report an array of achievements to the server.
     open class func report(_ achievements: [GKAchievement]) async throws {
         let maps = try await _skip_requireRegisteredAchievementMaps()
-        let definitions = try await _skip_loadPGSAchievementDefinitions()
+        let activity: ComponentActivity = UIApplication.shared.androidActivity!
+        let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
+        let loadTask: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
+        let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(loadTask)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
         var defById: [String: com.google.android.gms.games.achievement.Achievement] = [:]
-        for d in definitions {
+        for d in frozen {
             let id = d.getAchievementId()
             if !id.isEmpty { defById[id] = d }
         }
-
-        let client: AchievementsClient = PlayGames.getAchievementsClient(UIApplication.shared.androidActivity!)
 
         for gk in achievements {
             guard let googleId = maps.logicalToGoogle[gk.identifier] else {

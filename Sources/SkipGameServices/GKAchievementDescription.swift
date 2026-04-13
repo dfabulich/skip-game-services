@@ -5,6 +5,11 @@
 #if SKIP
 import Foundation
 import SkipUI
+import androidx.activity.ComponentActivity
+import com.google.android.gms.games.AnnotatedData
+import com.google.android.gms.games.PlayGames
+import com.google.android.gms.games.AchievementsClient
+import com.google.android.gms.games.achievement.AchievementBuffer
 
 /// GKAchievementDescription is a full description of the achievement as defined in Play Console (Play Games Services).
 open class GKAchievementDescription: NSObject {
@@ -38,19 +43,25 @@ open class GKAchievementDescription: NSObject {
     /// Asynchronously load all achievement descriptions
     open class func loadAchievementDescriptions() async throws -> [GKAchievementDescription] {
         let maps = try await _skip_requireRegisteredAchievementMaps()
-        let pgs = try await _skip_loadPGSAchievementDefinitions()
-        return try pgs.map { p in
+        let activity: ComponentActivity = UIApplication.shared.androidActivity!
+        let client: AchievementsClient = PlayGames.getAchievementsClient(activity)
+        let task: GmsTask<AnnotatedData<AchievementBuffer>> = client.load(false)
+        let annotated: AnnotatedData<AchievementBuffer> = try await gmsTaskResult(task)
+        let frozen: [com.google.android.gms.games.achievement.Achievement] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        var out: [GKAchievementDescription] = []
+        for p in frozen {
             let googleId = p.getAchievementId() ?? ""
             guard let logical = maps.googleToLogical[googleId] else {
                 throw GKError("Unmapped Play Games achievement id '\(googleId)'")
             }
-            return GKAchievementDescription(
+            out.append(GKAchievementDescription(
                 logicalIdentifier: logical,
                 opaquePlayGamesId: googleId,
                 title: p.getName(),
                 achievedDescription: p.getDescription()
-            )
+            ))
         }
+        return out
     }
 
     @available(*, unavailable)

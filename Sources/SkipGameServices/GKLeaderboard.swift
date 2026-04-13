@@ -92,26 +92,14 @@ open class GKLeaderboard: NSObject {
                 let task: GmsTask<AnnotatedData<com.google.android.gms.games.leaderboard.Leaderboard>> = client.loadLeaderboardMetadata(id, false)
                 let annotated: AnnotatedData<com.google.android.gms.games.leaderboard.Leaderboard> = try await gmsTaskResult(task)
                 guard let lb = annotated.get() else { continue }
-                out.append(GKLeaderboard(pgsLeaderboard: lb))
+                out.append(GKLeaderboard(pgsLeaderboard: lb.freeze()))
             }
             return out
         } else {
             let task: GmsTask<AnnotatedData<LeaderboardBuffer>> = client.loadLeaderboardMetadata(false)
             let annotated: AnnotatedData<LeaderboardBuffer> = try await gmsTaskResult(task)
-            guard let buffer: LeaderboardBuffer = annotated.get() else {
-                throw NSError(
-                    domain: "GKLeaderboard",
-                    code: 2,
-                    userInfo: [NSLocalizedDescriptionKey: "Play Games leaderboard metadata was unavailable"]
-                )
-            }
-            defer { buffer.release() }
-            let count: Int = Int(buffer.getCount())
-            var out: [GKLeaderboard] = []
-            for i in 0..<count {
-                out.append(GKLeaderboard(pgsLeaderboard: buffer.get(Int32(i))))
-            }
-            return out
+            let boards: [com.google.android.gms.games.leaderboard.Leaderboard] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+            return boards.map { GKLeaderboard(pgsLeaderboard: $0) }
         }
     }
 

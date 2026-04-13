@@ -100,17 +100,8 @@ extension GKLocalPlayer {
         let client: SnapshotsClient = PlayGames.getSnapshotsClient(activity)
         let task: GmsTask<AnnotatedData<SnapshotMetadataBuffer>> = client.load(false)
         let annotated: AnnotatedData<SnapshotMetadataBuffer> = try await gmsTaskResult(task)
-        guard let buffer: SnapshotMetadataBuffer = annotated.get() else {
-            throw GKError("Play Games saved game list was unavailable")
-        }
-        defer { buffer.release() }
-        let count = Int(buffer.getCount())
-        var out: [GKSavedGame] = []
-        for i in 0..<count {
-            let meta: SnapshotMetadata = buffer.get(Int32(i))
-            out.append(GKSavedGame(snapshotMetadata: meta))
-        }
-        return out
+        let metas: [SnapshotMetadata] = try _skip_collectFrozenRowsFromAnnotatedData(annotated)
+        return metas.map { GKSavedGame(snapshotMetadata: $0) }
     }
 
     @available(*, unavailable)

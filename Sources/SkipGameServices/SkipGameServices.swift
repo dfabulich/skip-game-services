@@ -9,6 +9,9 @@ import OSLog
 #if SKIP
 import SkipUI
 import androidx.activity.ComponentActivity
+import com.google.android.gms.common.data.AbstractDataBuffer
+import com.google.android.gms.common.data.Freezable
+import com.google.android.gms.games.AnnotatedData
 import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.GamesSignInClient
 import com.google.android.gms.games.AuthenticationResult
@@ -139,6 +142,25 @@ internal func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
             }
         }
     }
+}
+
+// MARK: - Play Games `AnnotatedData` + `DataBuffer` → frozen rows
+
+/// Rows from a data buffer are only valid until ``release()``; ``freeze()`` returns entities safe to retain after the buffer is released.
+internal func _skip_collectFrozenRowsFromAnnotatedData<Element, Buffer: AbstractDataBuffer<Element>>(
+    _ annotated: AnnotatedData<Buffer>
+) throws -> [Element] where Element: Freezable<Element> {
+    guard let buffer: Buffer = annotated.get() else {
+        throw GKError("Play Games buffer was nil")
+    }
+    defer { buffer.release() }
+    let n: Int = Int(buffer.getCount())
+    var out: [Element] = []
+    out.reserveCapacity(n)
+    for i in 0..<n {
+        out.append(buffer.get(Int32(i)).freeze())
+    }
+    return out
 }
 
 extension SkipGameServices {
