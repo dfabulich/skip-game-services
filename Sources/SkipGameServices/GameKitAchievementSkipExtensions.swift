@@ -20,5 +20,14 @@ extension GKAchievementDescription {
     public var opaqueIdentifier: String? { nil }
 }
 
+extension GKLeaderboard {
+    /// No-op on Apple GameKit; map is ignored. Matches Skip’s ``GKLeaderboard/registerLeaderboardIdentifiers(_:)`` signature.
+    @MainActor
+    public static func registerLeaderboardIdentifiers(_ map: [String: String]) throws {}
+
+    /// Always `nil` on GameKit; Play Games opaque ids exist only on Android.
+    public var opaqueIdentifier: String? { nil }
+}
+
 #endif
 #endif

@@ -11,6 +11,43 @@ import com.google.android.gms.games.LeaderboardsClient
 import com.google.android.gms.games.AnnotatedData
 import com.google.android.gms.games.leaderboard.LeaderboardBuffer
 
+// MARK: - Leaderboard ID registration (logical GameKit id ↔ Play Games opaque id)
+
+@MainActor
+internal enum SkipLeaderboardIdentifierRegistration {
+    struct Maps: Sendable {
+        let logicalToGoogle: [String: String]
+        let googleToLogical: [String: String]
+    }
+
+    private(set) static var maps: Maps?
+
+    static func register(logicalToGoogle: [String: String]) throws {
+        var googleToLogical: [String: String] = [:]
+        for (logical, google) in logicalToGoogle {
+            if let existingLogical = googleToLogical[google], existingLogical != logical {
+                throw GKError(
+                    "Duplicate Play Games leaderboard id '\(google)': mapped from both '\(existingLogical)' and '\(logical)'"
+                )
+            }
+            googleToLogical[google] = logical
+        }
+        maps = Maps(logicalToGoogle: logicalToGoogle, googleToLogical: googleToLogical)
+    }
+}
+
+/// Ensures leaderboard id registration ran; returns the maps from the main actor.
+internal func requireRegisteredLeaderboardMaps() async throws -> SkipLeaderboardIdentifierRegistration.Maps {
+    try await MainActor.run {
+        guard let maps = SkipLeaderboardIdentifierRegistration.maps else {
+            throw GKError(
+                "Leaderboard identifiers not registered; call GKLeaderboard.registerLeaderboardIdentifiers(_:) before using Play Games leaderboard APIs."
+            )
+        }
+        return maps
+    }
+}
+
 extension GKLeaderboard {
 
     public enum TimeScope: Int, @unchecked Sendable {
@@ -36,11 +73,24 @@ public typealias NSRange = Any
 /// GKLeaderboard represents a single instance of a leaderboard for the current game.
 open class GKLeaderboard: NSObject {
 
+    private var logicalIdentifier: String = ""
     private var pgsLeaderboardId: String = ""
     private var storedTitle: String? = nil
 
     /// Localized title
     open var title: String? { storedTitle }
+
+    /// Play Games Services leaderboard id, when applicable; `nil` on Apple GameKit.
+    @MainActor
+    public var opaqueIdentifier: String? {
+        pgsLeaderboardId.isEmpty ? nil : pgsLeaderboardId
+    }
+
+    /// Registers logical leaderboard ids (matching iOS Game Center) to Play Games opaque ids. Required before ``loadLeaderboards(IDs:)`` and leaderboard score submission APIs. Call from the main actor; later calls replace the mapping.
+    @MainActor
+    open class func registerLeaderboardIdentifiers(_ map: [String: String]) throws {
+        try SkipLeaderboardIdentifierRegistration.register(logicalToGoogle: map)
+    }
 
     @available(*, unavailable)
     open var groupIdentifier: String? { fatalError() }
@@ -81,6 +131,7 @@ open class GKLeaderboard: NSObject {
     }
 
     open class func loadLeaderboards(IDs leaderboardIDs: [String]?) async throws -> [GKLeaderboard] {
+        let maps = try await requireRegisteredLeaderboardMaps()
         let activity: ComponentActivity = UIApplication.shared.androidActivity!
         let client: LeaderboardsClient = PlayGames.getLeaderboardsClient(activity)
         if let leaderboardIDs {
@@ -88,18 +139,25 @@ open class GKLeaderboard: NSObject {
                 return []
             }
             var out: [GKLeaderboard] = []
-            for id in leaderboardIDs {
-                let task: GmsTask<AnnotatedData<com.google.android.gms.games.leaderboard.Leaderboard>> = client.loadLeaderboardMetadata(id, false)
+            for logicalId in leaderboardIDs {
+                guard let googleId = maps.logicalToGoogle[logicalId] else {
+                    throw GKError("No Play Games mapping for leaderboard '\(logicalId)'")
+                }
+                let task: GmsTask<AnnotatedData<com.google.android.gms.games.leaderboard.Leaderboard>> = client.loadLeaderboardMetadata(googleId, false)
                 let annotated: AnnotatedData<com.google.android.gms.games.leaderboard.Leaderboard> = try await gmsTaskResult(task)
                 guard let lb = annotated.get() else { continue }
-                out.append(GKLeaderboard(pgsLeaderboard: lb.freeze()))
+                out.append(try GKLeaderboard(pgsLeaderboard: lb.freeze(), maps: maps))
             }
             return out
         } else {
             let task: GmsTask<AnnotatedData<LeaderboardBuffer>> = client.loadLeaderboardMetadata(false)
             let annotated: AnnotatedData<LeaderboardBuffer> = try await gmsTaskResult(task)
             let boards: [com.google.android.gms.games.leaderboard.Leaderboard] = try collectFrozenRowsFromAnnotatedData(annotated)
-            return boards.map { GKLeaderboard(pgsLeaderboard: $0) }
+            var out: [GKLeaderboard] = []
+            for board in boards {
+                out.append(try GKLeaderboard(pgsLeaderboard: board, maps: maps))
+            }
+            return out
         }
     }
 
@@ -170,8 +228,13 @@ open class GKLeaderboard: NSObject {
         fatalError()
     }
 
-    private init(pgsLeaderboard: com.google.android.gms.games.leaderboard.Leaderboard) {
-        self.pgsLeaderboardId = pgsLeaderboard.getLeaderboardId() ?? ""
+    private init(pgsLeaderboard: com.google.android.gms.games.leaderboard.Leaderboard, maps: SkipLeaderboardIdentifierRegistration.Maps) throws {
+        let googleId = pgsLeaderboard.getLeaderboardId() ?? ""
+        guard let logical = maps.googleToLogical[googleId] else {
+            throw GKError("Unmapped Play Games leaderboard id '\(googleId)'")
+        }
+        self.logicalIdentifier = logical
+        self.pgsLeaderboardId = googleId
         let displayName = pgsLeaderboard.getDisplayName()
         self.storedTitle = (displayName?.isEmpty ?? true) ? nil : displayName
         super.init()
