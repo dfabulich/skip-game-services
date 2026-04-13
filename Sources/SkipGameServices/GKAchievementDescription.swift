@@ -9,10 +9,17 @@ import SkipUI
 /// GKAchievementDescription is a full description of the achievement as defined in Play Console (Play Games Services).
 open class GKAchievementDescription: NSObject {
     private let _identifier: String
+    private let _opaquePlayGamesId: String
     private let _title: String
     private let _achievedDescription: String
 
     open var identifier: String { _identifier }
+
+    /// Play Games Services achievement id when loaded from PGS; `nil` on Apple GameKit.
+    @MainActor
+    public var opaqueIdentifier: String? {
+        _opaquePlayGamesId.isEmpty ? nil : _opaquePlayGamesId
+    }
 
     /// The title of the achievement.
     open var title: String { _title }
@@ -20,8 +27,9 @@ open class GKAchievementDescription: NSObject {
     /// The description for an unachieved achievement (Apple header naming; Play Games exposes a single description string).
     open var achievedDescription: String { _achievedDescription }
 
-    fileprivate init(identifier: String, title: String, achievedDescription: String) {
-        self._identifier = identifier
+    fileprivate init(logicalIdentifier: String, opaquePlayGamesId: String, title: String, achievedDescription: String) {
+        self._identifier = logicalIdentifier
+        self._opaquePlayGamesId = opaquePlayGamesId
         self._title = title
         self._achievedDescription = achievedDescription
         super.init()
@@ -29,10 +37,16 @@ open class GKAchievementDescription: NSObject {
 
     /// Asynchronously load all achievement descriptions
     open class func loadAchievementDescriptions() async throws -> [GKAchievementDescription] {
+        let maps = try await _skip_requireRegisteredAchievementMaps()
         let pgs = try await _skip_loadPGSAchievementDefinitions()
-        return pgs.map { p in
-            GKAchievementDescription(
-                identifier: p.getAchievementId(),
+        return try pgs.map { p in
+            let googleId = p.getAchievementId() ?? ""
+            guard let logical = maps.googleToLogical[googleId] else {
+                throw GKError("Unmapped Play Games achievement id '\(googleId)'")
+            }
+            return GKAchievementDescription(
+                logicalIdentifier: logical,
+                opaquePlayGamesId: googleId,
                 title: p.getName(),
                 achievedDescription: p.getDescription()
             )
