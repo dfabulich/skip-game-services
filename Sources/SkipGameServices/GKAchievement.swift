@@ -223,6 +223,16 @@ open class GKAchievement: NSObject {
     open var player: GKPlayer { fatalError() }
 }
 
+extension GKAchievement: Hashable {
+    public static func == (lhs: GKAchievement, rhs: GKAchievement) -> Bool {
+        lhs.identifier == rhs.identifier
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(identifier)
+    }
+}
+
 extension GKAchievement {
     @available(*, unavailable)
     public init(identifier: String?, forPlayer playerID: String) {
