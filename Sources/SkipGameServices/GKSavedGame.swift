@@ -37,7 +37,7 @@ open class GKSavedGame: NSObject/*, NSCopying */ {
     }
 
     @available(*, unavailable)
-    open func loadData(completionHandler handler: (@Sendable (Data?, (any Error)?) -> Void)? = nil) {
+    open func loadData(completionHandler handler: (@Sendable (Data?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -114,7 +114,7 @@ extension GKLocalPlayer {
     }
 
     @available(*, unavailable)
-    open func saveGameData(_ data: Data, withName name: String, completionHandler handler: (@Sendable (GKSavedGame?, (any Error)?) -> Void)? = nil) {
+    open func saveGameData(_ data: Data, withName name: String, completionHandler handler: (@Sendable (GKSavedGame?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -139,7 +139,7 @@ extension GKLocalPlayer {
     }
 
     @available(*, unavailable)
-    open func deleteSavedGames(withName name: String, completionHandler handler: (@Sendable ((any Error)?) -> Void)? = nil) {
+    open func deleteSavedGames(withName name: String, completionHandler handler: (@Sendable ((any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -157,7 +157,7 @@ extension GKLocalPlayer {
     open func resolveConflictingSavedGames(
         _ conflictingSavedGames: [GKSavedGame],
         with data: Data,
-        completionHandler handler: (@Sendable ([GKSavedGame]?, (any Error)?) -> Void)? = nil
+        completionHandler handler: (@Sendable ([GKSavedGame]?, (any Error)?) -> Void)
     ) {
         fatalError()
     }

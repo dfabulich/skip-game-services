@@ -54,7 +54,7 @@ open class GKAchievementDescription: NSObject {
     }
 
     @available(*, unavailable)
-    open class func loadAchievementDescriptions(completionHandler: (@Sendable ([GKAchievementDescription]?, (any Error)?) -> Void)? = nil) {
+    open class func loadAchievementDescriptions(completionHandler: (@Sendable ([GKAchievementDescription]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -91,7 +91,7 @@ extension GKAchievementDescription {
 
 extension GKAchievementDescription {
     @available(*, unavailable)
-    open func loadImage(completionHandler: (@Sendable (UIImage?, (any Error)?) -> Void)? = nil) {
+    open func loadImage(completionHandler: (@Sendable (UIImage?, (any Error)?) -> Void)) {
         fatalError()
     }
 

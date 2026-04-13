@@ -55,7 +55,7 @@ open class GKScore: NSObject {
     }
 
     @available(*, unavailable)
-    open class func report(_ scores: [GKScore], withCompletionHandler completionHandler: (@Sendable ((any Error)?) -> Void)? = nil) {
+    open class func report(_ scores: [GKScore], withCompletionHandler completionHandler: (@Sendable ((any Error)?) -> Void)) {
         fatalError()
     }
 

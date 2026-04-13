@@ -19,12 +19,12 @@ public struct GKFriendsAuthorizationStatus: Hashable, @unchecked Sendable {
 extension GKLocalPlayer {
 
     @available(*, unavailable)
-    open func loadFriendPlayers(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)? = nil) {
+    open func loadFriendPlayers(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
     @available(*, unavailable)
-    open func generateIdentityVerificationSignature(completionHandler: (@Sendable (URL?, Data?, Data?, UInt64, (any Error)?) -> Void)? = nil) {
+    open func generateIdentityVerificationSignature(completionHandler: (@Sendable (URL?, Data?, Data?, UInt64, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -34,7 +34,7 @@ extension GKLocalPlayer {
     }
 
     @available(*, unavailable)
-    open func loadDefaultLeaderboardIdentifier(completionHandler: (@Sendable (String?, (any Error)?) -> Void)? = nil) {
+    open func loadDefaultLeaderboardIdentifier(completionHandler: (@Sendable (String?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -44,7 +44,7 @@ extension GKLocalPlayer {
     }
 
     @available(*, unavailable)
-    open func setDefaultLeaderboardIdentifier(_ leaderboardIdentifier: String, completionHandler: (@Sendable ((any Error)?) -> Void)? = nil) {
+    open func setDefaultLeaderboardIdentifier(_ leaderboardIdentifier: String, completionHandler: (@Sendable ((any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -57,7 +57,7 @@ extension GKLocalPlayer {
 extension GKLocalPlayer {
 
     @available(*, unavailable)
-    open func loadFriendsObsoleted(completionHandler: (@Sendable ([String]?, (any Error)?) -> Void)? = nil) {
+    open func loadFriendsObsoleted(completionHandler: (@Sendable ([String]?, (any Error)?) -> Void)) {
         fatalError()
     }
 

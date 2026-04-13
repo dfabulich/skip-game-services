@@ -204,12 +204,12 @@ open class GKAchievement: NSObject {
     }
 
     @available(*, unavailable)
-    open class func loadAchievements(completionHandler: (@Sendable ([GKAchievement]?, (any Error)?) -> Void)? = nil) {
+    open class func loadAchievements(completionHandler: (@Sendable ([GKAchievement]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
     @available(*, unavailable)
-    open class func resetAchievements(completionHandler: (@Sendable ((any Error)?) -> Void)? = nil) {
+    open class func resetAchievements(completionHandler: (@Sendable ((any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -219,7 +219,7 @@ open class GKAchievement: NSObject {
     }
 
     @available(*, unavailable)
-    open class func report(_ achievements: [GKAchievement], withCompletionHandler completionHandler: (@Sendable ((any Error)?) -> Void)? = nil) {
+    open class func report(_ achievements: [GKAchievement], withCompletionHandler completionHandler: (@Sendable ((any Error)?) -> Void)) {
         fatalError()
     }
 

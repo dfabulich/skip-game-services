@@ -26,7 +26,7 @@ open class GKLocalPlayer: GKPlayer {
     open var isPersonalizedCommunicationRestricted: Bool { get { fatalError() } }
 
     @available(*, unavailable)
-    open func loadRecentPlayers(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)? = nil) {
+    open func loadRecentPlayers(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -34,7 +34,7 @@ open class GKLocalPlayer: GKPlayer {
     open func loadRecentPlayers() async throws -> [GKPlayer] { fatalError() }
 
     @available(*, unavailable)
-    open func loadChallengableFriends(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)? = nil) {
+    open func loadChallengableFriends(completionHandler: (@Sendable ([GKPlayer]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -42,7 +42,7 @@ open class GKLocalPlayer: GKPlayer {
     open func loadChallengableFriends() async throws -> [GKPlayer] { fatalError() }
 
     @available(*, unavailable)
-    open func fetchItems(forIdentityVerificationSignature completionHandler: (@Sendable (URL?, Data?, Data?, UInt64, (any Error)?) -> Void)? = nil) {
+    open func fetchItems(forIdentityVerificationSignature completionHandler: (@Sendable (URL?, Data?, Data?, UInt64, (any Error)?) -> Void)) {
         fatalError()
     }
 

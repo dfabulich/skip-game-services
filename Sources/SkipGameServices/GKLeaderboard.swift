@@ -240,12 +240,12 @@ extension GKLeaderboard {
     }
 
     @available(*, unavailable)
-    open func loadScores(completionHandler: (([GKScore]?, (any Error)?) -> Void)? = nil) {
+    open func loadScores(completionHandler: (([GKScore]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
     @available(*, unavailable)
-    open class func loadLeaderboards(completionHandler: (@Sendable ([GKLeaderboard]?, (any Error)?) -> Void)? = nil) {
+    open class func loadLeaderboards(completionHandler: (@Sendable ([GKLeaderboard]?, (any Error)?) -> Void)) {
         fatalError()
     }
 
@@ -258,7 +258,7 @@ extension GKLeaderboard {
 extension GKLeaderboard {
 
     @available(*, unavailable)
-    open func loadImage(completionHandler: (@Sendable (UIImage?, (any Error)?) -> Void)? = nil) {
+    open func loadImage(completionHandler: (@Sendable (UIImage?, (any Error)?) -> Void)) {
         fatalError()
     }
 
