@@ -8,6 +8,33 @@ Currently, SkipGameServices can:
 * Submit leaderboard scores
 * Save, restore, and delete saved games
 
+## Table of Contents
+
+* [Setting up for Game Center / Play Games Services](#setting-up-for-game-center--play-games-services)
+* [Authentication](#authentication)
+    * `.skipGameServicesAuthenticationSheet()`
+    * `@Bindable private var gameServices = SkipGameServices.shared`
+        * `gameServices.isAuthenticated`
+* [Achievements](#achievements)
+    * `GKAchievement.registerAchievementIdentifiers(:)` for Android/iOS compatibility
+    * [`GKAchievment.report(:)`](https://developer.apple.com/documentation/gamekit/gkachievement/report(_:withcompletionhandler:))
+    * [`GKAchievement.loadAchievements()`](https://developer.apple.com/documentation/gamekit/gkachievement/loadachievements(completionhandler:))
+    * [`GKAchievement.loadAchievementDescriptions()`](https://developer.apple.com/documentation/gamekit/gkachievementdescription/loadachievementdescriptions(completionhandler:))
+* [Leaderboards](#leaderboards)
+    * `GKLeaderboard.registerLeaderboardIdentifiers(:)` for Android/iOS compatibility
+    * [`GKLeaderboard.loadLeaderboards(IDs:)`](https://developer.apple.com/documentation/gamekit/gkleaderboard/loadleaderboards(ids:completionhandler:))
+    * [`leaderboard.submitScore(_:context:player:)`](https://developer.apple.com/documentation/gamekit/gkleaderboard/submitscore(_:context:player:completionhandler:))
+* [Displaying Achievements and Leaderboards](#displaying-achievements-and-leaderboards)
+    * [`GKAccessPoint.shared.trigger(handler:)`](https://developer.apple.com/documentation/gamekit/gkaccesspoint/trigger(handler:))
+* [Saved Games](#saved-games)
+    * [`GKLocalPlayer.local.fetchSavedGames()`](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:))
+    * [`GKLocalPlayer.local.saveGameData(_:withName:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/savegamedata(_:withname:completionhandler:))
+    * Register to handle conflicts with [`GKLocalPlayer.local.register(_:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/register(_:))
+        * Implement [`GKSavedGameListener`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener)'s  method [`player(_:hasConflictingSavedGames:)`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener/player(_:hasconflictingsavedgames:))
+        * Call [`GKLocalPlayer.local.resolveConflictingSavedGames(_:with:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/resolveconflictingsavedgames(_:with:completionhandler:))
+
+
+
 ## Setting up for Game Center / Play Games Services
 
 It can be _very_ tricky to get your app set up properly if you've never done it before. It requires finicky work in App Store Connect, in the Google Play Console, in your Xcode project settings, and in your `AndroidManifest.xml`.
@@ -40,7 +67,9 @@ Follow the documentation here:
 ## Authentication
 
 * [Authenticating a player with Game Center](https://developer.apple.com/documentation/gamekit/authenticating-a-player)
+    * [`GKLocalPlayer`](https://developer.apple.com/documentation/gamekit/gklocalplayer)
 * [Platform authentication for Android games](https://developer.android.com/games/pgs/android/android-signin)
+    * [`GamesSignInClient`](https://developers.google.com/android/reference/com/google/android/gms/games/GamesSignInClient)
 
 Use the `.skipGameServicesAuthenticationSheet()` modifier to sign the user in to Game Center/Play Games automatically.
 
@@ -66,10 +95,19 @@ struct ContentView: View {
 }
 ```
 
-## Achievements (requires special configuration on Android)
+## Achievements
+
+> [!IMPORTANT]
+> Requires special configuration on Android
 
 * [Rewarding players with achievements](https://developer.apple.com/documentation/gamekit/rewarding-players-with-achievements)
+    * [`GKAchievement`](https://developer.apple.com/documentation/gamekit/gkachievement)
+    * [`GKAchievementDescription`](https://developer.apple.com/documentation/gamekit/gkachievementdescription)
 * [Achievements for Android games](https://developer.android.com/games/pgs/android/achievements)
+    * [`AchievementsClient`](https://developers.google.com/android/reference/com/google/android/gms/games/AchievementsClient)
+    * [`Achievement`](https://developers.google.com/android/reference/com/google/android/gms/games/achievement/Achievement)
+
+### Registering Android Achievement IDs
 
 Above and beyond just defining your achievements in the Google Play Console, there's a crucial difference between achievements on Google Play Games Services and achievemnets on App Store Connect.
 
@@ -77,7 +115,32 @@ App Store Connect lets you specify a logical "Achievement ID", e.g. `dragonslaye
 
 Play Games Services randomly generates an ID number for every achievement, like this: `CgkI7_2_yPQFEAIQAQ`. If you want to use a logical identifier for your achievement, Google recommends adding a `strings.xml` file mapping arbitrary names to Google's randomized achievement IDs.
 
-In order to load achievements from PGS including the same logical IDs you use on iOS, you have to call a special Skip-only API, `GKAchievement.registerAchievementIdentifiers(:)`. Call it before you call `GKAchievemnt.loadAchievements()`, like this:
+`SkipGameServices` provides a custom static extension method, `GKAchievement.registerAchievementIdentifiers(:)`, which you can use to register your Google Play Services opaque IDs by their logical IDs, matching iOS.
+
+```swift
+try GKAchievement.registerAchievementIdentifiers([
+    "dragonslayer": "CgkI7_2_yPQFEAIQAQ",
+    "flawless": "CgkIx4Hzt8oGEAIQGQ",
+    "tycoon": "CgkIx4Hzt8oGEAIQCw",
+])
+```
+
+### Reporting Achievement Progress
+
+Use [`GKAchievement.report(:)`](https://developer.apple.com/documentation/gamekit/gkachievement/report(_:withcompletionhandler:)) to report achievement progress.
+
+```swift
+try GKAchievement.registerAchievementIdentifiers([
+    "dragonslayer": "CgkI7_2_yPQFEAIQAQ",
+])
+let achievement = GKAchievement(identifier: "dragonslayer")
+achievement.percentComplete = 100.0
+try await GKAchievement.report([achievement])
+```
+
+### Loading and Displaying Achievements
+
+Use [`GKAchievemnt.loadAchievements()`](https://developer.apple.com/documentation/gamekit/gkachievement/loadachievements(completionhandler:)) to load achievements, like this:
 
 ```swift
 import SwiftUI
@@ -129,15 +192,24 @@ struct ContentView: View {
 }
 ```
 
-## Leaderboards (requires special configuration on Android)
+## Leaderboards
+
+> [!IMPORTANT]
+> Requires special configuration on Android
 
 * [Encourage progress and competition with leaderboards](https://developer.apple.com/documentation/gamekit/encourage-progress-and-competition-with-leaderboards)
+    * [`GKLeaderboard`](https://developer.apple.com/documentation/gamekit/gkleaderboard)
+    * [`GKLeaderboardScore`](https://developer.apple.com/documentation/gamekit/gkleaderboardscore)
+        * Deprecated, unsupported in `SkipGameServices`: [`GKScore`](https://developer.apple.com/documentation/gamekit/gkscore)
 * [Leaderboards in Android games](https://developer.android.com/games/pgs/android/leaderboards)
+    * [`LeaderboardsClient`](https://developers.google.com/android/reference/com/google/android/gms/games/LeaderboardsClient)
+    * [`Leaderboard`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/leaderboard/Leaderboard)
+    * [`LeaderboardScore`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/leaderboard/LeaderboardScore)
 
 Like achievements, leaderboard identifiers differ between App Store Connect and Play Games Services.
 
 On iOS, you use your logical leaderboard ID (for example, `highscore`) when calling `GKLeaderboard` APIs.
-On Android, Play Games uses opaque IDs like `CgkI7_2_yPQFEAIQAg`.
+On Android, Play Games uses randomized opaque IDs like `CgkI7_2_yPQFEAIQAg`.
 
 To use the same logical IDs on both platforms, register a mapping before loading leaderboards or submitting leaderboard scores:
 
@@ -152,12 +224,46 @@ if let leaderboard = leaderboards.first {
 }
 ```
 
+## Displaying Achievements and Leaderboards
+
+* [Adding an access point to your game](https://developer.apple.com/documentation/gamekit/adding-an-access-point-to-your-game)
+    * [`GKAccessPoint`](https://developer.apple.com/documentation/gamekit/gkaccesspoint)
+    * Deprecated, unsupported in `SkipGameServices`: [Displaying the Game Center dashboard](https://developer.apple.com/documentation/gamekit/displaying-the-game-center-dashboard)
+        * [`GKGameCenterViewController`](https://developer.apple.com/documentation/gamekit/gkgamecenterviewcontroller) (uses UIKit, which doesn't work in SkipUI)
+* Play Games Services
+    * [Display Achievements](https://developer.android.com/games/pgs/android/achievements#display_achievements)
+        * [`AchievementsClient.getAchievementsIntent()`](https://developers.google.com/android/reference/com/google/android/gms/games/AchievementsClient#public-abstract-taskintent-getachievementsintent)
+    * [Display a leaderboard](https://developer.android.com/games/pgs/android/leaderboards#display-leaderboard)
+        * [`LeaderboardsClient.getLeaderboardIntent()`](https://developers.google.com/android/reference/com/google/android/gms/games/LeaderboardsClient#getLeaderboardIntent(java.lang.String))
+
+```swift
+// The GKAccessPoint.trigger() function accepts a non-optional `handler:` callback
+// (You probably just want to leave it blank)
+GKAccessPoint.shared.trigger(.achievements) {}
+GKAccessPoint.shared.trigger(.leaderboards) {}
+
+// This API requires you to call GKLeaderboard.registerLeaderboardIdentifiers() first
+GKAccessPoint.shared.trigger(
+    leaderboardID: "highscore",
+    playerScope: .global, // or .friendsOnly
+    timeScope: .allTime // or .today, or .week
+) {}
+```
+
 ## Saved Games
 
 * [Saving the player’s game data to an iCloud account](https://developer.apple.com/documentation/gamekit/saving-the-player-s-game-data-to-an-icloud-account)
+    * [`GKSavedGame`](https://developer.apple.com/documentation/gamekit/gksavedgame)
+    * [`GKSavedGameListener`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener)
 * [Cloud save](https://developer.android.com/games/pgs/savedgames)
+    * [`SnapshotsClient`](https://developers.google.com/android/reference/com/google/android/gms/games/SnapshotsClient)
+        * [`DataOrConflict`](https://developers.google.com/android/reference/com/google/android/gms/games/SnapshotsClient.DataOrConflict)
+        * [`SnapshotConflict`](https://developers.google.com/android/reference/com/google/android/gms/games/SnapshotsClient.SnapshotConflict)
+    * [`Snapshot`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/snapshot/Snapshot)
+    * [`SnapshotMetadata`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/snapshot/SnapshotMetadata)
+    * [`SnapshotContents`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/snapshot/SnapshotContents)
 
-Load saved games with [GKLocalPlayer.local.fetchSavedGames()](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:)).
+Load saved games with [`GKLocalPlayer.local.fetchSavedGames()`](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:)).
 
 ```swift
 import SwiftUI
@@ -191,7 +297,7 @@ struct ContentView: View {
 }
 ```
 
-Save a game by name with [GKLocalPlayer.local.saveGameData()](https://developer.apple.com/documentation/gamekit/gklocalplayer/savegamedata(_:withname:completionhandler:))
+Save a game by name with [`GKLocalPlayer.local.saveGameData(_:withName:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/savegamedata(_:withname:completionhandler:)).
 
 ```swift
 let data = Data("example".utf8)
@@ -203,8 +309,10 @@ Register to handle save conflicts.
 ```swift
 class MySaveConflictListener: GKSavedGameListener {
     func player( _ player: GKPlayer, hasConflictingSavedGames savedGames: [GKSavedGame]) {
-        let data = Data("resolved".utf8)
-        GKLocalPlayer.local.resolveConflictingSaves(savedGames, with: data)
+        Task {
+            guard let data = try? await savedGames.first?.loadData() else { return }
+            try? await GKLocalPlayer.local.resolveConflictingSaves(savedGames, with: data)
+        }
     }
 }
 listener = MySaveConflictListener()
