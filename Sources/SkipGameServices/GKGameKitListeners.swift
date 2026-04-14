@@ -11,8 +11,6 @@ open class GKChallenge: NSObject {}
 open class GKGameActivity: NSObject {}
 open class GKInvite: NSObject {}
 open class GKTurnBasedMatch: NSObject {}
-open class GKTurnBasedExchange: NSObject {}
-open class GKTurnBasedExchangeReply: NSObject {}
 
 // MARK: - Listener protocols
 

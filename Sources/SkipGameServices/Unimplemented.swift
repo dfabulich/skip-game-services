@@ -9,7 +9,7 @@ import SwiftUI
 // MARK: - GKPlayer (GKPlayer.swift header)
 
 extension GKPlayer {
-    #if false // Fenced for Skip transpiler stability: GKPlayer.PhotoSize.
+    // SKIP @nobridge
     public enum PhotoSize: Int, @unchecked Sendable {
         case small = 0
         case normal = 1
@@ -27,7 +27,6 @@ extension GKPlayer {
     open func loadPhoto(for size: GKPlayer.PhotoSize) async throws -> UIImage {
         fatalError()
     }
-    #endif
 
     @available(*, unavailable)
     open var isFriend: Bool { fatalError() }
@@ -39,78 +38,6 @@ extension GKPlayer {
         fatalError()
     }
 }
-
-// MARK: - GKGameCenterViewController (GKGameCenterViewController.swift header)
-
-#if false // UIKit-heavy Game Center controller surfaces are intentionally disabled for Skip.
-open class GKGameCenterViewController: UINavigationController {
-    @available(*, unavailable)
-    weak open var gameCenterDelegate: (any GKGameCenterControllerDelegate)?
-
-    @available(*, unavailable)
-    public init(state: GKGameCenterViewControllerState) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init(leaderboardID: String, playerScope: GKLeaderboard.PlayerScope, timeScope: GKLeaderboard.TimeScope) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init(leaderboard: GKLeaderboard, playerScope: GKLeaderboard.PlayerScope) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init(leaderboardSetID: String) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init(achievementID: String) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init(player: GKPlayer) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    @available(*, unavailable)
-    open var viewState: GKGameCenterViewControllerState {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var leaderboardTimeScope: GKLeaderboard.TimeScope {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var leaderboardIdentifier: String? {
-        get { fatalError() }
-        set { fatalError() }
-    }
-}
-
-public protocol GKGameCenterControllerDelegate: NSObjectProtocol {
-    func gameCenterViewControllerDidFinish(_ gameCenterViewController: GKGameCenterViewController)
-}
-#endif
 
 // MARK: - GKVoiceChat (GKVoiceChat.swift header)
 
@@ -253,8 +180,6 @@ open class GKLeaderboardScore: NSObject, Hashable {
     }
 }
 
-#if false // Skip transpiler currently rejects many advanced multiplayer stubs.
-#endif
 // MARK: - GKPlayerConnectionState, GKMatch (GKMatch.swift header)
 
 public enum GKPlayerConnectionState: Int, @unchecked Sendable {
@@ -343,9 +268,6 @@ open class GKMatch: NSObject {
     @available(*, unavailable)
     open var playerIDs: [String]? { fatalError() }
 }
-
-#if false // Skip transpiler currently rejects many advanced multiplayer stubs.
-#endif
 
 // MARK: - GKMatchmaker stack (GKMatchMaker.swift header)
 
@@ -633,113 +555,6 @@ open class GKMatchmaker: NSObject {
 #endif
 }
 
-// MARK: - GKMatchmakingMode, GKMatchmakerViewController (GKMatchMakerViewController.swift header)
-
-public enum GKMatchmakingMode: Int, @unchecked Sendable {
-    case `default` = 0
-    case nearbyOnly = 1
-    case automatchOnly = 2
-    case inviteOnly = 3
-}
-
-#if false // UIKit-heavy MatchmakerViewController stubs are intentionally disabled for Skip.
-public protocol GKMatchmakerViewControllerDelegate: NSObjectProtocol {
-    func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController)
-    func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: any Error)
-}
-
-open class GKMatchmakerViewController: UINavigationController {
-    @available(*, unavailable)
-    weak open var matchmakerDelegate: (any GKMatchmakerViewControllerDelegate)? {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var matchRequest: GKMatchRequest { fatalError() }
-
-    @available(*, unavailable)
-    open var isHosted: Bool {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var matchmakingMode: GKMatchmakingMode {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var canStartWithMinimumPlayers: Bool {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    public init?(matchRequest request: GKMatchRequest) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public init?(invite: GKInvite) {
-        super.init(nibName: nil, bundle: nil)
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    public required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    @available(*, unavailable)
-    open func addPlayers(to match: GKMatch) { fatalError() }
-
-    @available(*, unavailable)
-    open func setHostedPlayer(_ player: GKPlayer, didConnect connected: Bool) { fatalError() }
-
-    @available(*, unavailable)
-    open func setHostedPlayer(_ playerID: String, connected: Bool) { fatalError() }
-}
-#endif
-
-// MARK: - GKLeaderboardViewController, GKLeaderboardSet (GKLeaderboardViewController, GKLeaderboardSet headers)
-
-#if false // UIKit-heavy leaderboard view controller stubs are intentionally disabled for Skip.
-@available(*, unavailable)
-public protocol GKLeaderboardViewControllerDelegate: NSObjectProtocol {
-    func leaderboardViewControllerDidFinish(_ leaderboardViewController: GKLeaderboardViewController)
-}
-
-@available(*, unavailable)
-open class GKLeaderboardViewController: UIViewController {
-    @available(*, unavailable)
-    open var timeScope: GKLeaderboard.TimeScope {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    open var category: String! {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    weak open var leaderboardDelegate: (any GKLeaderboardViewControllerDelegate)! {
-        get { fatalError() }
-        set { fatalError() }
-    }
-
-    @available(*, unavailable)
-    public required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-#endif
-
 open class GKLeaderboardSet: NSObject {
     @available(*, unavailable)
     open var title: String { fatalError() }
@@ -807,15 +622,16 @@ public let GKExchangeTimeoutDefault: TimeInterval = 0
 @available(*, unavailable)
 public let GKExchangeTimeoutNone: TimeInterval = 0
 
-#if false // Nested turn-based enums currently emit invalid Kotlin bridge code.
 extension GKTurnBasedMatch {
+    // SKIP @nobridge
     public enum Status: Int, @unchecked Sendable {
         case unknown = 0
-        case open = 1
+        //case open = 1
         case ended = 2
         case matching = 3
     }
 
+    // SKIP @nobridge
     public enum Outcome: Int, @unchecked Sendable {
         case none = 0
         case quit = 1
@@ -830,7 +646,6 @@ extension GKTurnBasedMatch {
         case customRange = 16711680
     }
 }
-
 extension GKTurnBasedParticipant {
     public enum Status: Int, @unchecked Sendable {
         case unknown = 0
@@ -864,7 +679,6 @@ open class GKTurnBasedParticipant: NSObject {
     @available(*, unavailable)
     open var playerID: String? { fatalError() }
 }
-#endif
 
 public enum GKTurnBasedExchangeStatus: Int, @unchecked Sendable {
     case unknown = 0
@@ -874,7 +688,6 @@ public enum GKTurnBasedExchangeStatus: Int, @unchecked Sendable {
     case canceled = 4
 }
 
-#if false // Type is already declared in GKGameKitListeners.swift.
 open class GKTurnBasedExchangeReply: NSObject {
     @available(*, unavailable)
     open var recipient: GKTurnBasedParticipant { fatalError() }
@@ -888,11 +701,7 @@ open class GKTurnBasedExchangeReply: NSObject {
     @available(*, unavailable)
     open var replyDate: Date { fatalError() }
 }
-#endif
 
-#if false // Keep remaining turn-based/challenge/game-activity stubs fenced for now.
-
-#if false // Type is already declared in GKGameKitListeners.swift.
 open class GKTurnBasedExchange: NSObject {
     @available(*, unavailable)
     open var exchangeID: String { fatalError() }
@@ -957,7 +766,6 @@ open class GKTurnBasedExchange: NSObject {
         fatalError()
     }
 }
-#endif
 
 extension GKTurnBasedMatch {
     @available(*, unavailable)
@@ -1157,6 +965,8 @@ extension GKTurnBasedMatch {
         fatalError()
     }
 
+    
+    #if false // deprecated GKScore variants clash with GKLeaderboardScore variants
     @available(*, unavailable)
     open func endMatchInTurn(
         withMatch matchData: Data,
@@ -1175,6 +985,7 @@ extension GKTurnBasedMatch {
     ) async throws {
         fatalError()
     }
+    #endif
 
     @available(*, unavailable)
     open func endMatchInTurn(
@@ -1329,15 +1140,8 @@ open class GKAchievementChallenge: GKChallenge {
     open var achievement: GKAchievement? { fatalError() }
 }
 
-#if false // UIViewController-based challenge compose typealiases are not bridged in Skip.
-@available(*, unavailable)
-public typealias GKChallengeComposeCompletionBlock = (UIViewController, Bool, [String]?) -> Void
-
-@available(*, unavailable)
-public typealias GKChallengeComposeHandler = (UIViewController, Bool, [GKPlayer]?) -> Void
-#endif
-
 extension GKScore {
+    #if false // deprecated GKScore variants clash with GKLeaderboardScore variants
     open class func report(
         _ scores: [GKScore],
         withEligibleChallenges challenges: [GKChallenge],
@@ -1353,6 +1157,7 @@ extension GKScore {
         fatalError()
     }
 
+    #endif
     open class func report(
         _ scores: [GKLeaderboardScore],
         withEligibleChallenges challenges: [GKChallenge],
@@ -1465,28 +1270,6 @@ extension GKAchievement {
     #endif
 }
 
-#if false // Keep GKLeaderboard.Entry compose surfaces fenced for now.
-extension GKLeaderboard.Entry {
-    @available(*, unavailable)
-    open func challengeComposeController(
-        withMessage message: String?,
-        players: [GKPlayer]?,
-        completionHandler: GKChallengeComposeCompletionBlock?
-    ) -> UIViewController {
-        fatalError()
-    }
-
-    @available(*, unavailable)
-    open func challengeComposeController(
-        withMessage message: String?,
-        players: [GKPlayer]?,
-        completion completionHandler: GKChallengeComposeHandler?
-    ) -> UIViewController {
-        fatalError()
-    }
-}
-#endif
-
 // MARK: - GKChallengeDefinition (GKChallengeDefinition.swift header)
 
 open class GKChallengeDefinition: NSObject {
@@ -1562,6 +1345,7 @@ public enum GKGameActivityPlayStyle: Int, @unchecked Sendable {
 }
 
 extension GKGameActivity {
+    // SKIP @nobridge
     public enum State: UInt, @unchecked Sendable {
         case initialized = 0
         case active = 1
@@ -1735,7 +1519,6 @@ extension GKGameActivity {
 
     @available(*, unavailable)
     public convenience init(definition activityDefinition: GKGameActivityDefinition) {
-        self.init()
         fatalError()
     }
 
@@ -2010,11 +1793,81 @@ extension GKGameSession {
     }
 }
 
-#endif
+// MARK: - UIViewController / UINavigationController
+
+#if false
+// MARK: - GKGameCenterViewController (GKGameCenterViewController.swift header)
+
+open class GKGameCenterViewController: UINavigationController {
+    @available(*, unavailable)
+    weak open var gameCenterDelegate: (any GKGameCenterControllerDelegate)?
+
+    @available(*, unavailable)
+    public init(state: GKGameCenterViewControllerState) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init(leaderboardID: String, playerScope: GKLeaderboard.PlayerScope, timeScope: GKLeaderboard.TimeScope) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init(leaderboard: GKLeaderboard, playerScope: GKLeaderboard.PlayerScope) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init(leaderboardSetID: String) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init(achievementID: String) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init(player: GKPlayer) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @available(*, unavailable)
+    open var viewState: GKGameCenterViewControllerState {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var leaderboardTimeScope: GKLeaderboard.TimeScope {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var leaderboardIdentifier: String? {
+        get { fatalError() }
+        set { fatalError() }
+    }
+}
+
+public protocol GKGameCenterControllerDelegate: NSObjectProtocol {
+    func gameCenterViewControllerDidFinish(_ gameCenterViewController: GKGameCenterViewController)
+}
 
 // MARK: - Turn-based UI (GKTurnBasedMatchmakerViewController.swift header)
 
-#if false // UIKit-heavy turn-based matchmaker view controller stubs are intentionally disabled for Skip.
 @available(*, unavailable)
 public protocol GKTurnBasedMatchmakerViewControllerDelegate: NSObjectProtocol {
     func turnBasedMatchmakerViewControllerWasCancelled(_ viewController: GKTurnBasedMatchmakerViewController)
@@ -2055,11 +1908,9 @@ open class GKTurnBasedMatchmakerViewController: UINavigationController {
         fatalError("init(coder:) has not been implemented")
     }
 }
-#endif
 
 // MARK: - GKFriendRequestComposeViewController (GKFriendRequestComposeViewController.swift header)
 
-#if false // UIKit-heavy friend-request compose stubs are intentionally disabled for Skip.
 @available(*, unavailable)
 public protocol GKFriendRequestComposeViewControllerDelegate: AnyObject {
     func friendRequestComposeViewControllerDidFinish(_ viewController: GKFriendRequestComposeViewController)
@@ -2093,6 +1944,136 @@ open class GKFriendRequestComposeViewController: UINavigationController {
         set { fatalError() }
     }
 }
+
+// MARK: - GKMatchmakingMode, GKMatchmakerViewController (GKMatchMakerViewController.swift header)
+
+public enum GKMatchmakingMode: Int, @unchecked Sendable {
+    case `default` = 0
+    case nearbyOnly = 1
+    case automatchOnly = 2
+    case inviteOnly = 3
+}
+
+public protocol GKMatchmakerViewControllerDelegate: NSObjectProtocol {
+    func matchmakerViewControllerWasCancelled(_ viewController: GKMatchmakerViewController)
+    func matchmakerViewController(_ viewController: GKMatchmakerViewController, didFailWithError error: any Error)
+}
+
+open class GKMatchmakerViewController: UINavigationController {
+    @available(*, unavailable)
+    weak open var matchmakerDelegate: (any GKMatchmakerViewControllerDelegate)? {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var matchRequest: GKMatchRequest { fatalError() }
+
+    @available(*, unavailable)
+    open var isHosted: Bool {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var matchmakingMode: GKMatchmakingMode {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var canStartWithMinimumPlayers: Bool {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    public init?(matchRequest request: GKMatchRequest) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public init?(invite: GKInvite) {
+        super.init(nibName: nil, bundle: nil)
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @available(*, unavailable)
+    open func addPlayers(to match: GKMatch) { fatalError() }
+
+    @available(*, unavailable)
+    open func setHostedPlayer(_ player: GKPlayer, didConnect connected: Bool) { fatalError() }
+
+    @available(*, unavailable)
+    open func setHostedPlayer(_ playerID: String, connected: Bool) { fatalError() }
+}
+
+// MARK: - GKLeaderboardViewController, GKLeaderboardSet (GKLeaderboardViewController, GKLeaderboardSet headers)
+
+@available(*, unavailable)
+public protocol GKLeaderboardViewControllerDelegate: NSObjectProtocol {
+    func leaderboardViewControllerDidFinish(_ leaderboardViewController: GKLeaderboardViewController)
+}
+
+@available(*, unavailable)
+open class GKLeaderboardViewController: UIViewController {
+    @available(*, unavailable)
+    open var timeScope: GKLeaderboard.TimeScope {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    open var category: String! {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    weak open var leaderboardDelegate: (any GKLeaderboardViewControllerDelegate)! {
+        get { fatalError() }
+        set { fatalError() }
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+// UIViewController-based challenge compose typealiases are not bridged in Skip.
+@available(*, unavailable)
+public typealias GKChallengeComposeCompletionBlock = (UIViewController, Bool, [String]?) -> Void
+
+@available(*, unavailable)
+public typealias GKChallengeComposeHandler = (UIViewController, Bool, [GKPlayer]?) -> Void
+
+extension GKLeaderboard.Entry {
+    @available(*, unavailable)
+    open func challengeComposeController(
+        withMessage message: String?,
+        players: [GKPlayer]?,
+        completionHandler: GKChallengeComposeCompletionBlock?
+    ) -> UIViewController {
+        fatalError()
+    }
+
+    @available(*, unavailable)
+    open func challengeComposeController(
+        withMessage message: String?,
+        players: [GKPlayer]?,
+        completion completionHandler: GKChallengeComposeHandler?
+    ) -> UIViewController {
+        fatalError()
+    }
+}
+
 #endif
 
 #endif
