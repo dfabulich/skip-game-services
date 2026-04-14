@@ -138,7 +138,9 @@ internal func gmsTaskResult<T>(_ task: GmsTask<T>) async throws -> T {
             if completed.isSuccessful {
                 continuation.resume(returning: completed.getResult())
             } else {
-                continuation.resume(throwing: ErrorException(cause: completed.getException()))
+                let error = ErrorException(cause: completed.getException())
+                logger.error("Play Games Services task failed: \(error)")
+                continuation.resume(throwing: error)
             }
         }
     }
