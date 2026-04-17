@@ -36,11 +36,22 @@ let logger: Logger = Logger(subsystem: "skip.game.services", category: "SkipGame
 public final class SkipGameServices {
     public static let shared = SkipGameServices()
 
-    /// Whether the user is signed in to Game Center (Apple) or Play Games Services (Android). Updated when you call ``refreshAuthentication()`` / ``authenticate()`` and (on Apple) when GameKit’s authentication handler runs.
-    public private(set) var isAuthenticated: Bool = false
+    /// When `true`, ``isAuthenticated`` stays `false`, ``refreshAuthentication()`` / ``authenticate()`` do nothing, and GameKit callbacks do not surface as authenticated. Set to `false` to mirror ``GKLocalPlayer/local`` again.
+    public var authenticationDisabled: Bool = false {
+        didSet {
+            if !authenticationDisabled {
+                platformAuthenticated = GKLocalPlayer.local.isAuthenticated
+            }
+        }
+    }
+
+    private var platformAuthenticated: Bool = false
+
+    /// Whether the user is signed in to Game Center (Apple) or Play Games Services (Android). Updated when you call ``refreshAuthentication()`` / ``authenticate()`` and (on Apple) when GameKit’s authentication handler runs. Forced to `false` while ``authenticationDisabled`` is `true`.
+    public var isAuthenticated: Bool { authenticationDisabled ? false : platformAuthenticated }
 
     private init() {
-        isAuthenticated = GKLocalPlayer.local.isAuthenticated
+        platformAuthenticated = GKLocalPlayer.local.isAuthenticated
     }
 
     #if !SKIP
@@ -55,26 +66,36 @@ public final class SkipGameServices {
     private var inFlightRefresh: Task<Bool, any Error>?
     #endif
 
+    public var serviceDisplayName: String {
+        #if SKIP
+        return "Google Play Games"
+        #else
+        return "Game Center"
+        #endif
+    }
+
     /// Refreshes authentication state and returns whether the user is signed in.
     public func refreshAuthentication() async throws -> Bool {
+        if authenticationDisabled { return false }
         let signedIn: Bool
         #if SKIP
         signedIn = try await androidRefreshAuthentication()
         #else
         signedIn = try await appleRefreshAuthentication()
         #endif
-        isAuthenticated = GKLocalPlayer.local.isAuthenticated
+        platformAuthenticated = GKLocalPlayer.local.isAuthenticated
         return signedIn
     }
 
     /// Interactive sign-in.
     public func authenticate() async throws {
+        if authenticationDisabled { return }
         #if SKIP
         try await androidAuthenticate()
         #else
         try await appleAuthenticate()
         #endif
-        isAuthenticated = GKLocalPlayer.local.isAuthenticated
+        platformAuthenticated = GKLocalPlayer.local.isAuthenticated
     }
 }
 
@@ -87,7 +108,7 @@ extension SkipGameServices {
             Task { @MainActor in
                 guard let self else { return }
                 self.authenticationViewController = viewController
-                defer { self.isAuthenticated = GKLocalPlayer.local.isAuthenticated }
+                defer { self.platformAuthenticated = GKLocalPlayer.local.isAuthenticated }
                 guard let continuation = self.pendingRefreshContinuation else { return }
                 self.pendingRefreshContinuation = nil
                 if let error {
