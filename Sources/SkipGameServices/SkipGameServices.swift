@@ -36,7 +36,7 @@ let logger: Logger = Logger(subsystem: "skip.game.services", category: "SkipGame
 public final class SkipGameServices {
     public static let shared = SkipGameServices()
 
-    /// When `true`, ``isAuthenticated`` stays `false`, ``refreshAuthentication()`` / ``authenticate()`` do nothing, and GameKit callbacks do not surface as authenticated. Set to `false` to mirror ``GKLocalPlayer/local`` again.
+    /// When `true`, ``isAuthenticated`` stays `false`, ``refreshAuthentication()`` does nothing
     public var authenticationDisabled: Bool = false {
         didSet {
             if !authenticationDisabled {
@@ -89,7 +89,7 @@ public final class SkipGameServices {
 
     /// Interactive sign-in.
     public func authenticate() async throws {
-        if authenticationDisabled { return }
+        authenticationDisabled = false
         #if SKIP
         try await androidAuthenticate()
         #else
