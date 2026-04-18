@@ -147,6 +147,7 @@ extension SkipGameServices {
 
     fileprivate func appleAuthenticate() async throws {
         interactivePresentationGeneration &+= 1
+        _ = try await appleRefreshAuthentication()
     }
 }
 #else
