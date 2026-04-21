@@ -62,6 +62,7 @@ public final class SkipGameServices {
     public private(set) var interactivePresentationGeneration: Int = 0
 
     private var authenticateHandlerInstalled = false
+    private var authenticationHandlerError: Error? = nil
     private var pendingRefreshContinuation: CheckedContinuation<Bool, any Error>?
     private var inFlightRefresh: Task<Bool, any Error>?
     #endif
@@ -102,12 +103,23 @@ public final class SkipGameServices {
 #if !SKIP
 extension SkipGameServices {
     private func ensureAuthenticateHandlerInstalled() {
-        guard !authenticateHandlerInstalled else { return }
+        guard authenticationViewController == nil, !authenticateHandlerInstalled else {
+            if let pendingRefreshContinuation {
+                self.pendingRefreshContinuation = nil
+                if let authenticationHandlerError {
+                    pendingRefreshContinuation.resume(throwing: authenticationHandlerError)
+                } else {
+                    pendingRefreshContinuation.resume(returning: GKLocalPlayer.local.isAuthenticated)
+                }
+            }
+            return
+        }
         authenticateHandlerInstalled = true
         GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
             Task { @MainActor in
                 guard let self else { return }
                 self.authenticationViewController = viewController
+                self.authenticationHandlerError = error
                 defer { self.platformAuthenticated = GKLocalPlayer.local.isAuthenticated }
                 guard let continuation = self.pendingRefreshContinuation else { return }
                 self.pendingRefreshContinuation = nil
