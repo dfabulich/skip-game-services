@@ -12,7 +12,8 @@ Currently, SkipGameServices can:
 
 * [Setting up for Game Center / Play Games Services](#setting-up-for-game-center--play-games-services)
 * [Authentication](#authentication)
-    * `.skipGameServicesAuthenticationSheet()`
+    * `SkipGameServices.shared.refreshAuthentication()`
+    * `SkipGameServices.shared.authenticate()`
     * `@Bindable private var gameServices = SkipGameServices.shared`
         * `gameServices.isAuthenticated`
 * [Achievements](#achievements)
@@ -71,11 +72,11 @@ Follow the documentation here:
 * [Platform authentication for Android games](https://developer.android.com/games/pgs/android/android-signin)
     * [`GamesSignInClient`](https://developers.google.com/android/reference/com/google/android/gms/games/GamesSignInClient)
 
-Use the `.skipGameServicesAuthenticationSheet()` modifier to sign the user in to Game Center/Play Games automatically.
+The authentication flow for both GameKit and Play Games Services is quite similar. The platform requires you to first check whether the user is authenticated, which you'd normally do at launch, via `SkipGameServices.shared.refreshAuthentication()`.
 
 In GameKit, you use `GKLocalPlayer.local.isAuthenticated` to detect if the user is authenticated, and you can read the current user's name with `GKLocalPlayer.local.displayName`.
 
-The `SkipGameServices` object is a singleton marked `@Observable`, so you can add it to your SwiftUI/SkipUI app like this and have your UI automatically update when `isAuthenticated` changes.
+The `SkipGameServices.shared` object is a singleton marked `@Observable`, so you can add it to your SwiftUI/SkipUI app like this, and have your UI automatically update when `isAuthenticated` changes.
 
 ```swift
 import SwiftUI
@@ -88,12 +89,24 @@ struct ContentView: View {
             Text("Authenticated: \(gameServices.isAuthenticated ? "Yes" : "No")")
             if gameServices.isAuthenticated {
                 Text("Hello, \(GKLocalPlayer.local.displayName)")
+            } else {
+                Button("Sign in") {
+                    Task {
+                        try? await gameServices.authenticate()
+                    }
+                }
             }
         }
-        .skipGameServicesAuthenticationSheet()
+        .task {
+            try? await gameServices.refreshAuthentication()
+        }
     }
 }
 ```
+
+When you first refresh authentication, GameKit/PGS may show a full-screen sign-in prompt. If the user dismisses the prompt, GameKit/PGS won't show it again. You can call `SkipGameServices.shared.authenticate()` to sign in after the user dismisses the prompt.
+
+(GameKit doesn't actually offer an API to request sign in after dismissing the prompt. On iOS, `authenticate()` opens Game Center in the iOS Settings app.)
 
 ## Achievements
 
@@ -166,27 +179,21 @@ struct ContentView: View {
                 }
             }
         }
-        .skipGameServicesAuthenticationSheet()
-        .task(id: gameServices.isAuthenticated) {
-            if gameServices.isAuthenticated {
-                try? await refreshAchievements()
-            } else {
-                achievements = []
-            }
+        .task {
+            try? await gameServices.refreshAuthentication()
         }
-    }
-
-    private func refreshAchievements() async throws {
-        isLoading = true
-        defer { isLoading = false }
-        try GKAchievement.registerAchievementIdentifiers([
-            "dragonslayer": "CgkI7_2_yPQFEAIQAQ",
-        ])
-        async let achievementsPromise = try await GKAchievement.loadAchievements()
-        async let descriptionsPromise = try await GKAchievementDescription.loadAchievementDescriptions()
-        achievements = try await achievementsPromise
-        for description in try await descriptionsPromise {
-            achievementDescription[description.identifier] = description
+        .onChange(of: gameServices.isAuthenticated, initial: true) {
+            isLoading = true
+            defer { isLoading = false }
+            try GKAchievement.registerAchievementIdentifiers([
+                "dragonslayer": "CgkI7_2_yPQFEAIQAQ",
+            ])
+            async let achievementsPromise = try await GKAchievement.loadAchievements()
+            async let descriptionsPromise = try await GKAchievementDescription.loadAchievementDescriptions()
+            achievements = try? await achievementsPromise ?? []
+            for description in try? await descriptionsPromise ?? [] {
+                achievementDescription[description.identifier] = description
+            }
         }
     }
 }
@@ -286,9 +293,10 @@ struct ContentView: View {
                 }
             }
         }
-        .skipGameServicesAuthenticationSheet()
-        .task(id: gameServices.isAuthenticated) {
-            guard gameServices.isAuthenticated else { savedGames = [] }
+        .task {
+            try? await gameServices.refreshAuthentication()
+        }
+        .onChange(of: gameServices.isAuthenticated, initial: true) {
             isLoading = true
             defer { isLoading = false }
             savedGames = try? await GKLocalPlayer.local.fetchSavedGames() ?? []
