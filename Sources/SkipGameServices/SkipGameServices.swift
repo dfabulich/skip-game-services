@@ -56,10 +56,20 @@ public final class SkipGameServices {
 
     #if !SKIP
     /// View controller from the latest ``GKLocalPlayer`` `authenticateHandler` callback
-    public private(set) var authenticationViewController: PlatformViewController?
+    private var authenticationViewController: PlatformViewController? = nil
 
-    /// Increments when ``authenticate()`` requests interactive presentation; used to re-open the Game Center sheet.
-    public private(set) var interactivePresentationGeneration: Int = 0
+    struct IdentifiableViewController: Identifiable {
+        let id: ObjectIdentifier
+        let viewController: PlatformViewController
+
+        init(_ viewController: PlatformViewController) {
+            self.id = ObjectIdentifier(viewController)
+            self.viewController = viewController
+        }
+    }
+    
+    // SkipGameServicesAuthenticationSheet uses this to drive the sheet
+    var authenticationViewControllerItem: IdentifiableViewController? = nil
 
     private var authenticateHandlerInstalled = false
     private var authenticationHandlerError: Error? = nil
@@ -103,7 +113,7 @@ public final class SkipGameServices {
 #if !SKIP
 extension SkipGameServices {
     private func ensureAuthenticateHandlerInstalled() {
-        guard authenticationViewController == nil, !authenticateHandlerInstalled else {
+        guard !authenticateHandlerInstalled else {
             if let pendingRefreshContinuation {
                 self.pendingRefreshContinuation = nil
                 if let authenticationHandlerError {
@@ -118,7 +128,10 @@ extension SkipGameServices {
         GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
             Task { @MainActor in
                 guard let self else { return }
-                self.authenticationViewController = viewController
+                if let viewController {
+                    self.authenticationViewController = viewController
+                    self.authenticationViewControllerItem = IdentifiableViewController(viewController)
+                }
                 self.authenticationHandlerError = error
                 defer { self.platformAuthenticated = GKLocalPlayer.local.isAuthenticated }
                 guard let continuation = self.pendingRefreshContinuation else { return }
@@ -127,9 +140,6 @@ extension SkipGameServices {
                     logger.error("GameKit authenticateHandler failed: \(error.localizedDescription, privacy: .public)")
                     continuation.resume(throwing: error)
                     return
-                }
-                if viewController != nil {
-                    self.interactivePresentationGeneration &+= 1
                 }
                 let isAuthenticated = GKLocalPlayer.local.isAuthenticated
                 logger.info("GameKit refreshAuthentication completed: isAuthenticated=\(isAuthenticated)")
@@ -141,6 +151,7 @@ extension SkipGameServices {
     fileprivate func appleRefreshAuthentication() async throws -> Bool {
         guard !GKLocalPlayer.local.isAuthenticated else {
             logger.info("GameKit refreshAuthentication skipped (already signed in): isAuthenticated=true")
+            authenticationViewControllerItem = nil
             return true
         }
         if let inFlightRefresh {
@@ -158,8 +169,16 @@ extension SkipGameServices {
     }
 
     fileprivate func appleAuthenticate() async throws {
-        interactivePresentationGeneration &+= 1
-        _ = try await appleRefreshAuthentication()
+        guard !GKLocalPlayer.local.isAuthenticated else {
+            logger.info("GameKit appleAuthenticate skipped (already signed in): isAuthenticated=true")
+            authenticationViewControllerItem = nil
+            return
+        }
+        if let authenticationViewController, authenticationViewControllerItem == nil {
+            authenticationViewControllerItem = IdentifiableViewController(authenticationViewController)
+        } else {
+            await UIApplication.shared.open(URL(string: "App-prefs:root=GAMECENTER")!)
+        }
     }
 }
 #else

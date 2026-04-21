@@ -19,10 +19,6 @@ extension View {
 private struct SkipGameServicesAuthenticationModifier: ViewModifier {
     @Bindable private var gameServices = SkipGameServices.shared
     @Environment(\.scenePhase) private var scenePhase
-    #if !SKIP
-    /// Drives the Game Center ``View/sheet`` when ``SkipGameServices/authenticationViewController`` is available.
-    @State private var isPresented: Bool = false
-    #endif
 
     func body(content: Content) -> some View {
         content
@@ -30,34 +26,16 @@ private struct SkipGameServicesAuthenticationModifier: ViewModifier {
                 if newPhase == .active {
                     Task {
                         _ = try? await gameServices.refreshAuthentication()
-                        #if !SKIP
-                        syncSheetPresentation()
-                        #endif
                     }
                 }
             }
             #if !SKIP
-            .onChange(of: gameServices.interactivePresentationGeneration, initial: true) {
-                syncSheetPresentation()
-            }
-            .sheet(isPresented: $isPresented) {
-                let vc = gameServices.authenticationViewController!
-                GameKitAuthenticationViewControllerRepresentable(vc)
+            .sheet(item: $gameServices.authenticationViewControllerItem) {
+                let _ = logger.debug("Presented Game Center authentication sheet")
+                GameKitAuthenticationViewControllerRepresentable($0.viewController)
             }
             #endif
     }
-
-    #if !SKIP
-    private func syncSheetPresentation() {
-        if GKLocalPlayer.local.isAuthenticated {
-            isPresented = false
-            return
-        }
-        if gameServices.authenticationViewController != nil {
-            isPresented = true
-        }
-    }
-    #endif
 }
 
 #if !SKIP
