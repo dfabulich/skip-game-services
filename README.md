@@ -30,9 +30,7 @@ Currently, SkipGameServices can:
 * [Saved Games](#saved-games)
     * [`GKLocalPlayer.local.fetchSavedGames()`](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:))
     * [`GKLocalPlayer.local.saveGameData(_:withName:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/savegamedata(_:withname:completionhandler:))
-    * Register to handle conflicts with [`GKLocalPlayer.local.register(_:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/register(_:))
-        * Implement [`GKSavedGameListener`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener)'s  method [`player(_:hasConflictingSavedGames:)`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener/player(_:hasconflictingsavedgames:))
-        * Call [`GKLocalPlayer.local.resolveConflictingSavedGames(_:with:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/resolveconflictingsavedgames(_:with:completionhandler:))
+    * Handle conflict entries from fetch with [`GKLocalPlayer.local.resolveConflictingSavedGames(_:with:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/resolveconflictingsavedgames(_:with:completionhandler:))
 
 
 
@@ -270,7 +268,7 @@ GKAccessPoint.shared.trigger(
     * [`SnapshotMetadata`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/snapshot/SnapshotMetadata)
     * [`SnapshotContents`](https://developers.google.com/android/games_v1/reference/com/google/android/gms/games/snapshot/SnapshotContents)
 
-Load saved games with [`GKLocalPlayer.local.fetchSavedGames()`](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:)).
+Load saved games with [`GKLocalPlayer.local.fetchSavedGames()`](https://developer.apple.com/documentation/gamekit/gklocalplayer/fetchsavedgames(completionhandler:)). (Note that the resulting saved games may be conflicted; you'll need to detect and resolve the conflicts; see below.)
 
 ```swift
 import SwiftUI
@@ -300,6 +298,10 @@ struct ContentView: View {
             isLoading = true
             defer { isLoading = false }
             savedGames = try? await GKLocalPlayer.local.fetchSavedGames() ?? []
+            // resolve conflicts, see below
+            while try await resolveConflicts(savedGames) {
+                savedGames = try? await GKLocalPlayer.local.fetchSavedGames() ?? []
+            }
         }
     }
 }
@@ -312,19 +314,38 @@ let data = Data("example".utf8)
 try await GKLocalPlayer.local.saveGameData(data, withName: "test")
 ```
 
-Register to handle save conflicts.
+### Detecting and resolving conflicts in saved games
+
+GameKit documentation tells you to implement `GKSavedGameListener` to be notified of conflicts with [`player(_:hasConflictingSavedGames:)`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener/player(_:hasconflictingsavedgames:)).
+
+That works in GameKit apps, because GameKit automatically synchronizes saved games in the background. Play Games Services doesn't do that, and so `SkipGameServices` will never call your `GKSavedGameListener` in the background, either.
+
+Instead, you must detect and resolve save conflicts by merging the conflicted entries returned from `fetchSavedGames()`. (This is a best practice in GameKit as well, because there's no guarantee that your listener will resolve all conflicts before `fetchSavedGames()` is called.)
 
 ```swift
-class MySaveConflictListener: GKSavedGameListener {
-    func player( _ player: GKPlayer, hasConflictingSavedGames savedGames: [GKSavedGame]) {
-        Task {
-            guard let data = try? await savedGames.first?.loadData() else { return }
-            try? await GKLocalPlayer.local.resolveConflictingSaves(savedGames, with: data)
+func resolveConflicts(_ conflicts: [GKSavedGame]) async throws -> Bool {
+    var groupedByName: [String: [GKSavedGame]] = [:]
+    for game in fetched {
+        guard let name = game.name else { continue }
+        if groupedByName[name] == nil {
+            groupedByName[name] = []
         }
+        groupedByName[name]?.append(game)
     }
+    var conflictsResolved = false
+    for (name, conflicted) in groupedByName where conflicted.count > 1 {
+        // in this example, we resolve the conflict by arbitarily picking the first value
+        // you could pick the newest instead
+        let data = try await conflicted.first!.loadData()
+        _ = try await GKLocalPlayer.local.resolveConflictingSavedGames(conflicted, with: mergedData)
+        conflictsResolved = true
+    }
+    return conflictsResolved
 }
-listener = MySaveConflictListener()
-GKLocalPlayer.local.register(listener)
+var fetched = try await GKLocalPlayer.local.fetchSavedGames()
+while try await resolveConflicts(fetched) {
+    fetched = try await GKLocalPlayer.local.fetchSavedGames()
+}
 ```
 
 ## Building

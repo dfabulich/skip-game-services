@@ -42,16 +42,18 @@ internal actor SnapshotWritingActor {
 }
 
 /// Class representing a saved game for the local player, or a version of a saved game when in conflict
-open class GKSavedGame: NSObject/*, NSCopying */ {
-    internal let snapshotMetadata: SnapshotMetadata
+open class GKSavedGame: NSObject, CustomStringConvertible/*, NSCopying */ {
+    internal let snapshot: Snapshot
     /// Set only for instances built from a Play Games ``SnapshotConflict`` (see ``GKLocalPlayer/resolveConflictingSavedGames(_:with:)``).
     internal let snapshotConflict: SnapshotsClient.SnapshotConflict?
 
-    internal init(snapshotMetadata: SnapshotMetadata, snapshotConflict: SnapshotsClient.SnapshotConflict? = nil) {
-        self.snapshotMetadata = snapshotMetadata
+    internal init(snapshot: Snapshot, snapshotConflict: SnapshotsClient.SnapshotConflict? = nil) {
+        self.snapshot = snapshot
         self.snapshotConflict = snapshotConflict
         super.init()
     }
+
+    internal var snapshotMetadata: SnapshotMetadata { snapshot.getMetadata() }
 
     open var name: String? { snapshotMetadata.getUniqueName() }
 
@@ -68,33 +70,6 @@ open class GKSavedGame: NSObject/*, NSCopying */ {
     }
 
     open func loadData() async throws -> Data {
-        // While a Play Games conflict is unresolved, open(MANUAL) returns the same conflict again (see requireSnapshotAfterOpen).
-        // GKSavedGame instances from SnapshotConflict.toSavedGames() carry snapshotConflict; read bytes from that branch's Snapshot.
-        if let conflict = snapshotConflict {
-            let myId = snapshotMetadata.getSnapshotId()
-            let base: Snapshot = conflict.getSnapshot()
-            let other: Snapshot = conflict.getConflictingSnapshot()
-            let branch: Snapshot
-            if base.getMetadata().getSnapshotId() == myId {
-                branch = base
-            } else if other.getMetadata().getSnapshotId() == myId {
-                branch = other
-            } else {
-                throw GKError("Saved game metadata did not match either conflict branch")
-            }
-            let contents: SnapshotContents = branch.getSnapshotContents()
-            let bytes = try contents.readFully()
-            return Data(platformValue: bytes)
-        }
-
-        let activity: ComponentActivity = UIApplication.shared.androidActivity!
-        let client: SnapshotsClient = PlayGames.getSnapshotsClient(activity)
-        let task: GmsTask<SnapshotsClient.DataOrConflict<Snapshot>> = client.open(
-            snapshotMetadata,
-            SnapshotsClient.RESOLUTION_POLICY_MANUAL
-        )
-        let dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot> = try await gmsTaskResult(task)
-        let snapshot: Snapshot = try await GKSavedGame.requireSnapshotAfterOpen(dataOrConflict)
         let contents: SnapshotContents = snapshot.getSnapshotContents()
         let bytes = try contents.readFully()
         return Data(platformValue: bytes)
@@ -102,16 +77,23 @@ open class GKSavedGame: NSObject/*, NSCopying */ {
 
     // MARK: - Internals
 
-    /// Returns the opened snapshot, or notifies ``GKSavedGameListener`` of conflicts and throws (manual resolution required).
-    internal static func requireSnapshotAfterOpen(_ dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot>) async throws -> Snapshot {
+    /// Converts open results into one or more ``GKSavedGame`` values for fetch/load.
+    internal static func inflateSavedGamesAfterOpen(_ dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot>) throws -> [GKSavedGame] {
         if dataOrConflict.isConflict() {
             guard let conflict: SnapshotsClient.SnapshotConflict = dataOrConflict.getConflict() else {
                 throw GKError("Play Games snapshot conflict details were unavailable")
             }
-            let group = conflict.toSavedGames()
-            if !group.isEmpty {
-                await GKLocalPlayer.local.notifySavedGameConflicts(group)
-            }
+            return conflict.toSavedGames()
+        }
+        guard let snapshot: Snapshot = dataOrConflict.getData() else {
+            throw GKError("Play Games snapshot data was unavailable")
+        }
+        return [GKSavedGame(snapshot: snapshot)]
+    }
+
+    /// Returns the opened snapshot when non-conflicting; save operations keep conflict behavior unchanged for now.
+    internal static func requireNonConflictingSnapshotAfterOpen(_ dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot>) throws -> Snapshot {
+        if dataOrConflict.isConflict() {
             throw GKError("Saved game conflict must be resolved with resolveConflictingSavedGames(_:with:)")
         }
         guard let snapshot: Snapshot = dataOrConflict.getData() else {
@@ -119,14 +101,18 @@ open class GKSavedGame: NSObject/*, NSCopying */ {
         }
         return snapshot
     }
+
+    var description: String {
+        return "GKSavedGame(name: \(name ?? "nil"), deviceName: \(deviceName ?? "nil"), modificationDate: \(modificationDate?.description ?? "nil"), snapshotMetadata id: \(snapshotMetadata.getSnapshotId()))"
+    }
 }
 
 extension SnapshotsClient.SnapshotConflict {
-    /// Builds ``GKSavedGame`` list for ``GKSavedGameListener/player(_:hasConflictingSavedGames:)`` from this Play Games conflict.
+    /// Builds ``GKSavedGame`` list for Play Games conflict branches.
     func toSavedGames() -> [GKSavedGame] {
         let conflicts: [Snapshot] = [getSnapshot(), getConflictingSnapshot()]
         return conflicts.map {
-            GKSavedGame(snapshotMetadata: $0.getMetadata(), snapshotConflict: self)
+            GKSavedGame(snapshot: $0, snapshotConflict: self)
         }
     }
 }
@@ -146,7 +132,16 @@ extension GKLocalPlayer {
         let task: GmsTask<AnnotatedData<SnapshotMetadataBuffer>> = client.load(false)
         let annotated: AnnotatedData<SnapshotMetadataBuffer> = try await gmsTaskResult(task)
         let metas: [SnapshotMetadata] = try collectFrozenRowsFromAnnotatedData(annotated)
-        return metas.map { GKSavedGame(snapshotMetadata: $0) }
+        var out: [GKSavedGame] = []
+        for metadata in metas {
+            let openTask: GmsTask<SnapshotsClient.DataOrConflict<Snapshot>> = client.open(
+                metadata,
+                SnapshotsClient.RESOLUTION_POLICY_MANUAL
+            )
+            let dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot> = try await gmsTaskResult(openTask)
+            out.append(contentsOf: try GKSavedGame.inflateSavedGamesAfterOpen(dataOrConflict))
+        }
+        return out
     }
 
     @available(*, unavailable)
@@ -164,7 +159,7 @@ extension GKLocalPlayer {
                 SnapshotsClient.RESOLUTION_POLICY_MANUAL
             )
             let dataOrConflict: SnapshotsClient.DataOrConflict<Snapshot> = try await gmsTaskResult(openTask)
-            let snapshot: Snapshot = try await GKSavedGame.requireSnapshotAfterOpen(dataOrConflict)
+            let snapshot: Snapshot = try GKSavedGame.requireNonConflictingSnapshotAfterOpen(dataOrConflict)
             let contents: SnapshotContents = snapshot.getSnapshotContents()
             let bytes = data.platformValue
             guard contents.writeBytes(bytes) else {
@@ -172,7 +167,13 @@ extension GKLocalPlayer {
             }
             let commitTask: GmsTask<SnapshotMetadata> = client.commitAndClose(snapshot, SnapshotMetadataChange.EMPTY_CHANGE)
             let committed: SnapshotMetadata = try await gmsTaskResult(commitTask)
-            return GKSavedGame(snapshotMetadata: committed)
+            let reopenTask: GmsTask<SnapshotsClient.DataOrConflict<Snapshot>> = client.open(
+                committed,
+                SnapshotsClient.RESOLUTION_POLICY_MANUAL
+            )
+            let reopened: SnapshotsClient.DataOrConflict<Snapshot> = try await gmsTaskResult(reopenTask)
+            let resolvedSnapshot: Snapshot = try GKSavedGame.requireNonConflictingSnapshotAfterOpen(reopened)
+            return GKSavedGame(snapshot: resolvedSnapshot)
         }
     }
 
@@ -205,12 +206,12 @@ extension GKLocalPlayer {
     /// Picks the single ``SnapshotConflict`` carried on the array (same conflict id on every entry).
     private func unifiedSnapshotConflict(from games: [GKSavedGame]) throws -> SnapshotsClient.SnapshotConflict {
         guard let unified: SnapshotsClient.SnapshotConflict = games.first(where: { $0.snapshotConflict != nil })?.snapshotConflict else {
-            throw GKError("Pass the GKSavedGame instances from player(_:hasConflictingSavedGames:); they carry required conflict state")
+            throw GKError("Pass conflicting GKSavedGame instances from fetchSavedGames(); they carry required conflict state")
         }
         let unifiedId: String = unified.getConflictId()
         for game in games {
             guard let c: SnapshotsClient.SnapshotConflict = game.snapshotConflict else {
-                throw GKError("Every conflicting save must carry conflict state from hasConflictingSavedGames")
+                throw GKError("Every conflicting save must carry conflict state from fetchSavedGames")
             }
             let cid: String = c.getConflictId()
             guard cid == unifiedId else {
@@ -252,6 +253,7 @@ extension GKLocalPlayer {
             return []
         }
     }
+
 }
 
 #endif
