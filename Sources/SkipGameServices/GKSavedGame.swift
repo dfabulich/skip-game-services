@@ -15,10 +15,8 @@ import com.google.android.gms.games.snapshot.SnapshotMetadata
 import com.google.android.gms.games.snapshot.SnapshotMetadataBuffer
 import com.google.android.gms.games.snapshot.SnapshotMetadataChange
 
-/// Coalesces overlapping ``SnapshotsClient`` `commit`/`resolve`/`delete` work per unique snapshot name.
-/// Concurrent writes for different names run in parallel.
-/// Concurrent saves for the *same* name from one device otherwise surface as spurious conflicts (see Play Games snapshots).
-internal actor SnapshotWritingActor {
+/// Serializes overlapping Play Games snapshot mutations per unique save name.
+actor SnapshotWritingActor {
     static let shared = SnapshotWritingActor()
     private var previousTaskByName: [String: Task<Void, Never>] = [:]
 
@@ -106,6 +104,8 @@ open class GKSavedGame: NSObject, CustomStringConvertible/*, NSCopying */ {
         return "GKSavedGame(name: \(name ?? "nil"), deviceName: \(deviceName ?? "nil"), modificationDate: \(modificationDate?.description ?? "nil"), snapshotMetadata id: \(snapshotMetadata.getSnapshotId()))"
     }
 }
+
+extension GKSavedGame: @unchecked Sendable {}
 
 extension SnapshotsClient.SnapshotConflict {
     /// Builds ``GKSavedGame`` list for Play Games conflict branches.

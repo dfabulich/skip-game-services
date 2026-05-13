@@ -315,7 +315,9 @@ try await GKLocalPlayer.local.saveGameData(data, withName: "test")
 
 GameKit documentation tells you to implement [`GKSavedGameListener`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener) and register with [`GKLocalPlayer.register(_:)`](https://developer.apple.com/documentation/gamekit/gklocalplayer/register(_:)) to be notified of conflicts with [`player(_:hasConflictingSavedGames:)`](https://developer.apple.com/documentation/gamekit/gksavedgamelistener/player(_:hasconflictingsavedgames:)).
 
-That works in GameKit apps, because GameKit automatically synchronizes saved games in the background. Play Games Services doesn't do that, and so `SkipGameServices` will never call your `GKSavedGameListener` in the background.
+That mostly works in GameKit apps, because GameKit automatically synchronizes saved games in the background. Play Games Services doesn't do that, and so `SkipGameServices` will never call your `GKSavedGameListener` in the background.
+
+(`GKSavedGameListener` only "mostly works," because GameKit will frequently call your `GKSavedGameListener` handler multiple times for the same conflict. `didModifySavedGame` is even harder to work with, as it can call you back multiple times about the modifications you just made, including conflicts that you just resolved.)
 
 Instead, you must detect and resolve save conflicts by merging the conflicted entries returned from `fetchSavedGames()`. (This is a best practice in GameKit as well, because there's no guarantee that your listener will resolve all conflicts before `fetchSavedGames()` is called.)
 
@@ -328,23 +330,23 @@ let resolved = try await GKLocalPlayer.local.fetchSavedGamesResolvingConflicts()
 By default, it prefers the most recently modified save, but you can pass in your own `GKSavedGame.ConflictResolver` (another extension of ours), like this:
 
 ```swift
-let resolved = try await GKLocalPlayer.local.fetchSavedGamesResolvingConflicts() { savedGames in
-    // arbitrarily pick the first save
-    guard let first = savedGames.first else { return }
-    let data = try await first.loadData()
-    _ = try await GKLocalPlayer.local.resolveConflictingSavedGames(savedGames, with: data)
+let resolved = try await GKLocalPlayer.local.fetchSavedGamesResolvingConflicts() { name, first, rest in
+    // arbitrarily pick the first save’s payload
+    return try await first.loadData()
 }
 ```
 
-It still helps to implement `GKSavedGameListener` on iOS; you can use a `GKSavedGame.ConflictResolver` there, too. Here's an example using our `GKSavedGame.mostRecentConflictResolver`.
+If you need your app to synchronize the latest saved games, design your app to poll `fetchSavedGamesResolvingConflicts()`. If you do that, on iOS, you won't need `GKSavedGameListener`. (We recommend avoiding using `GKSavedGameListener` for anything besides logging.)
+
+But, if you really want to implement `GKSavedGameListener` on iOS, you can use a `GKSavedGame.ConflictResolver` there, too. You can use our `GKSavedGame.detectAndResolveConflicts(in:with:)` function to resolve conflicts. Here's an example using our `GKSavedGame.mostRecentConflictResolver`.
 
 ```swift
 // In this example, you'll use our resolver, but you could implement your own
 let resolver: GKSavedGame.ConflictResolver = GKSavedGame.mostRecentConflictResolver
-class SavedGameListener: GKSavedGameListener {
+class SavedGameListener: NSObject, GKSavedGameListener {
     func player(_ player: GKPlayer, hasConflictingSavedGames savedGames: [GKSavedGame]) {
         Task {
-            try? await resolver(savedGames)
+            try? await GKSavedGame.detectAndResolveConflicts(in: savedGames, with: resolver)
         }
     }
 }
